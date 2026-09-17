@@ -302,7 +302,7 @@
 "use strict";
 (function(){
   /* ============================ Constants ============================ */
-  const GAME_VERSION = 'v4';   // <- à incrémenter à chaque nouvelle version publiée
+  const GAME_VERSION = 'v5';   // <- à incrémenter à chaque nouvelle version publiée
   const COLS = 7, ROWS = 12, NC = 5;
   const RAINBOW = 9;   // valeur spéciale dans la grille : bestiole arc-en-ciel
   const FLASH_MS = 150, DROP_MS = 190, GAP_MS = 70;
@@ -349,6 +349,8 @@
     choke:0,
     grab:null,
     grabOff:0,
+    lastDragBuzz:0,
+    grabTarget:null,
     level:1,
     species:0,
     shape:0,
@@ -1221,33 +1223,32 @@
     const p=cellAt(e.clientX,e.clientY);
     const onEmpty = p.row>=0&&p.row<ROWS&&p.col>=0&&p.col<COLS && S.grid[p.row][p.col]===-1;
     S.grab = onEmpty ? fallerNear(p.cf,p.rf) : null;
+    S.grabTarget = S.grab ? S.grab.col : null;
     if(S.grab){
       S.grabOff = ((S.grab.xr!=null?S.grab.xr:S.grab.col)+0.5) - p.cf;   // écart doigt ↔ bestiole
       if(Math.abs(S.grabOff)>1.5) S.grabOff=0;                           // saisie lointaine : on recentre
-      buzz(10);
     }
   });
   gameCanvas.addEventListener('pointermove', e=>{
     if(!downOn) return;
     if(Math.hypot(e.clientX-downX,e.clientY-downY)>10) moved=true;
     if(S.grab){
-      if(S.fallers.indexOf(S.grab)===-1){ S.grab=null; return; }
+      if(S.fallers.indexOf(S.grab)===-1){ S.grab=null; S.grabTarget=null; return; }
+      // On enregistre seulement la cible ; le déplacement est appliqué une fois par image.
       const p=cellAt(e.clientX,e.clientY);
-      // On garde l'écart doigt/bestiole pris à la saisie : le bloc suit le doigt sans "sauter".
       let tcol=Math.round(p.cf - 0.5 + (S.grabOff||0));
-      tcol=Math.max(0,Math.min(COLS-1,tcol));
-      if(tcol!==S.grab.col){ if(moveFallerToward(S.grab,tcol)) buzz(6); }
+      S.grabTarget=Math.max(0,Math.min(COLS-1,tcol));
     }
   });
   function endPointer(e){
     if(!downOn) return; downOn=false;
-    if(S.grab){ S.grab=null; return; }        // released a dragged critter — no explosion
+    if(S.grab){ S.grab=null; S.grabTarget=null; return; }  // relâché après un glissement : pas d'explosion
     if(S.state!=='playing') return;
     if(moved) return;                          // it was a drag, not a tap
     handleTap(e.clientX,e.clientY);
   }
   gameCanvas.addEventListener('pointerup', endPointer);
-  gameCanvas.addEventListener('pointercancel', ()=>{ downOn=false; S.grab=null; });
+  gameCanvas.addEventListener('pointercancel', ()=>{ downOn=false; S.grab=null; S.grabTarget=null; });
   gameCanvas.addEventListener('touchstart', e=>{ e.preventDefault(); }, {passive:false});
   function handleTap(cx,cy){
     const rect=gameCanvas.getBoundingClientRect();
@@ -1271,15 +1272,23 @@
     updateStreaks(dt);
     if(S.state==='playing'){
       S.elapsed+=dt;
+      // Déplacement horizontal demandé par le doigt : appliqué une seule fois par image
+      if(S.grab && S.grabTarget!=null && S.fallers.indexOf(S.grab)!==-1 && S.grabTarget!==S.grab.col){
+        if(moveFallerToward(S.grab, S.grabTarget)){
+          const now=performance.now();
+          if(now-(S.lastDragBuzz||0)>90){ S.lastDragBuzz=now; buzz(5); }
+        }
+      }
       const spd=fallSpeed(S.elapsed);
       for(const f of S.fallers){
         if(f.xr==null) f.xr=f.col;
         const sp=(f===S.grab?spd*0.40:spd);          // on ralentit un peu plus pendant la prise
         f.y += sp*dt/1000;
-        // Glissement horizontal fluide et indépendant du framerate
-        const k=1-Math.exp(-dt/45);                   // ~45 ms de constante de temps
+        // Glissement horizontal : très réactif quand on tient la bestiole, doux sinon
+        const tau=(f===S.grab)?18:32;                 // ms — plus petit = colle au doigt
+        const k=1-Math.exp(-dt/tau);
         f.xr += (f.col-f.xr)*k;
-        if(Math.abs(f.col-f.xr)<0.01) f.xr=f.col;     // arrivée nette
+        if(Math.abs(f.col-f.xr)<0.02) f.xr=f.col;     // arrivée nette
       }
       settleFallers();
       if(anySpace()){ S.choke=0; } else { S.choke+=dt; if(S.choke>=1200) gameOver(); }
