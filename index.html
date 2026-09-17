@@ -145,6 +145,13 @@
   .splash-sub{font-family:'Fredoka',system-ui,sans-serif;font-weight:500;font-size:14px;color:#8ea0d6;opacity:0;animation:sUp .5s ease .78s forwards}
   @keyframes sUp{to{opacity:1;transform:none}}
   @media (prefers-reduced-motion:reduce){.splash-logo i,.splash-title,.splash-sub{animation-duration:.01s}}
+  .difftitle{ font-size:13px; font-weight:600; color:var(--muted); margin:0 0 8px; }
+  .diffs{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:0 0 18px; }
+  .diffbtn{ padding:12px 6px; border-radius:13px; border:1px solid var(--line); background:linear-gradient(180deg,var(--panel-2),var(--panel));
+    color:var(--muted); font-family:inherit; font-weight:600; font-size:14px; cursor:pointer; line-height:1.25; transition:transform .08s ease; }
+  .diffbtn small{ display:block; font-weight:400; font-size:11px; opacity:.75; margin-top:3px; }
+  .diffbtn:active{ transform:scale(.96); }
+  .diffbtn.on{ background:rgba(53,224,208,.16); color:var(--accent); border-color:rgba(53,224,208,.4); }
   .lbtabs{ display:flex; gap:6px; margin:0 0 8px; }
   .lbtab{ flex:1; padding:8px 6px; border-radius:10px; border:1px solid var(--line); background:transparent; color:var(--muted); font-family:inherit; font-weight:600; font-size:13px; cursor:pointer; }
   .lbtab.active{ background:rgba(53,224,208,.14); color:var(--accent); border-color:rgba(53,224,208,.3); }
@@ -204,6 +211,12 @@
       <div class="rule"><span class="n">3</span><span>À la retombée, chaque nouvelle paire explose en chaîne — vise les gros combos.</span></div>
       <div class="rule"><span class="n">4</span><span>Plus la chaîne est longue, plus le score grimpe.</span></div>
     </div>
+    <div class="difftitle">Difficulté</div>
+    <div class="diffs" id="diffPick">
+      <button class="diffbtn" data-diff="facile">Facile<small>tout en douceur</small></button>
+      <button class="diffbtn on" data-diff="moyen">Intermédiaire<small>équilibré</small></button>
+      <button class="diffbtn" data-diff="expert">Expert<small>ça dépote</small></button>
+    </div>
     <div class="btnrow">
       <button class="btn primary" id="playBtn">Jouer</button>
       <button class="btn ghost" id="startBoardBtn">Classement mondial</button>
@@ -215,10 +228,11 @@
 <div class="overlay" id="pauseOverlay">
   <div class="card">
     <h2>En pause</h2>
-    <p class="lede">La pluie t'attend.</p>
+    <p class="lede" id="pauseDiff">La pluie t'attend.</p>
     <div class="btnrow">
       <button class="btn primary" id="resumeBtn">Reprendre</button>
       <button class="btn ghost" id="restartBtn">Recommencer</button>
+      <button class="btn ghost" id="changeDiffBtn">Changer de difficulté</button>
     </div>
   </div>
 </div>
@@ -327,19 +341,22 @@
     wasNewBest:false,
     startBest:0,
     recordFired:false,
+    diff:'moyen',
   };
 
   /* ============================ Storage ============================ */
-  const K_BEST='cascadeTap.best', K_MUTE='cascadeTap.mute', K_MUSIC='cascadeTap.music', K_CASC='cascadeTap.cascade';
+  const K_BEST='cascadeTap.best', K_MUTE='cascadeTap.mute', K_MUSIC='cascadeTap.music', K_CASC='cascadeTap.cascade', K_DIFF='cascadeTap.diff';
   function load(){
     try{ const b=parseInt(localStorage.getItem(K_BEST),10); if(!isNaN(b)) S.best=b; }catch(e){}
     try{ S.muted = localStorage.getItem(K_MUTE)==='1'; }catch(e){}
     try{ const mm=localStorage.getItem(K_MUSIC); if(mm!==null) S.musicOn = mm!=='0'; }catch(e){}
+    try{ const d=localStorage.getItem(K_DIFF); if(d && DIFFS[d]) S.diff=d; }catch(e){}
     try{ const raw=localStorage.getItem(K_CASC); if(raw) S.allTime=fromStore(JSON.parse(raw)); }catch(e){}
   }
   function saveBest(){ try{ localStorage.setItem(K_BEST, String(S.best)); }catch(e){} }
   function saveMute(){ try{ localStorage.setItem(K_MUTE, S.muted?'1':'0'); }catch(e){} }
   function saveMusic(){ try{ localStorage.setItem(K_MUSIC, S.musicOn?'1':'0'); }catch(e){} }
+  function saveDiff(){ try{ localStorage.setItem(K_DIFF, S.diff); }catch(e){} }
   function saveCascade(c){ try{ localStorage.setItem(K_CASC, JSON.stringify(toStore(c))); }catch(e){} }
 
   function toStore(c){
@@ -960,8 +977,14 @@
     showGameOver();
   }
 
-  const spawnInterval = ms => { const s=ms/1000; return Math.max(340, 950 - s*7); };
-  const fallSpeed = ms => { const s=ms/1000; return Math.min(11, 3.5 + s*0.045); }; // rows / sec
+  // Niveaux de difficulté : "moyen" reprend exactement la vitesse d'origine.
+  const DIFFS = {
+    facile:  { name:'Facile',       fall0:2.4, fallK:0.030, fallMax:7.5,  spawn0:1250, spawnK:5, spawnMin:520 },
+    moyen:   { name:'Intermédiaire',fall0:3.5, fallK:0.045, fallMax:11,   spawn0:950,  spawnK:7, spawnMin:340 },
+    expert:  { name:'Expert',       fall0:4.3, fallK:0.056, fallMax:13,   spawn0:820,  spawnK:9, spawnMin:280 },
+  };
+  const spawnInterval = ms => { const s=ms/1000, D=DIFFS[S.diff]||DIFFS.moyen; return Math.max(D.spawnMin, D.spawn0 - s*D.spawnK); };
+  const fallSpeed = ms => { const s=ms/1000, D=DIFFS[S.diff]||DIFFS.moyen; return Math.min(D.fallMax, D.fall0 + s*D.fallK); }; // rows / sec
 
   function anySpace(){ for(let c=0;c<COLS;c++) if(stackCol(c)<ROWS) return true; return false; }
   function trySpawn(){
@@ -1046,7 +1069,7 @@
     const active = (S.state==='playing'||S.state==='resolving'||S.state==='paused');
     if(!active){ elFoot.textContent='Touche un groupe pour déclencher la cascade'; return; }
     const era = S.shape>0 ? (' · '+SHAPE_NAMES[S.shape]) : '';
-    elFoot.textContent = 'Niveau '+S.level+' · '+SPECIES[S.species]+era;
+    elFoot.textContent = (DIFFS[S.diff]||DIFFS.moyen).name+' · Niveau '+S.level+' · '+SPECIES[S.species]+era;
   }
   function playLevelSound(big){
     if(S.muted||!actx) return;
@@ -1501,6 +1524,21 @@
   }
   document.addEventListener('click', function(e){ const t=e.target && e.target.closest && e.target.closest('.lbtab'); if(t) setScope(t.dataset.scope); });
 
+  function refreshDiffUI(){
+    document.querySelectorAll('.diffbtn').forEach(b=>b.classList.toggle('on', b.dataset.diff===S.diff));
+    const pd=document.getElementById('pauseDiff');
+    if(pd) pd.textContent='Difficulté : '+((DIFFS[S.diff]||DIFFS.moyen).name)+'. La pluie t\u2019attend.';
+  }
+  function setDiff(d){
+    if(!d || !DIFFS[d] || d===S.diff) return;
+    S.diff=d; saveDiff(); refreshDiffUI(); updateFooter();
+    toast('Difficulté : '+DIFFS[d].name);
+  }
+  document.addEventListener('click', function(e){
+    const b=e.target && e.target.closest && e.target.closest('.diffbtn');
+    if(b){ ensureAudio(); uiClick(); setDiff(b.dataset.diff); }
+  });
+
   /* ============================ Wire up ============================ */
   $('#playBtn').addEventListener('click', startGame);
   $('#againBtn').addEventListener('click', startGame);
@@ -1512,6 +1550,9 @@
   $('#publishBtn').addEventListener('click', publishScore);
   $('#startBoardBtn').addEventListener('click', ()=>{ ensureAudio(); uiClick(); initDB(); renderBoards(); updateBoardUI(); show(boardOv); });
   $('#boardCloseBtn').addEventListener('click', ()=>hide(boardOv));
+  $('#changeDiffBtn').addEventListener('click', ()=>{
+    stopMusic(); S.state='start'; hide(pauseOv); resetGame(); updateFooter(); refreshDiffUI(); show(startOv);
+  });
   const muteBtn=$('#muteBtn');
   function refreshMute(){ muteBtn.classList.toggle('off', S.muted); muteBtn.setAttribute('aria-label', S.muted?'Activer le son':'Couper le son');
     $('#muteIcon').innerHTML = S.muted
@@ -1535,7 +1576,7 @@
   ['pointerdown','touchend','keydown'].forEach(ev=>window.addEventListener(ev, unlockAudio, {passive:true}));
 
   /* ============================ Boot ============================ */
-  load(); refreshMute(); refreshMusic(); resetGame(); sizeGame(); updateHUD();
+  load(); refreshMute(); refreshMusic(); refreshDiffUI(); resetGame(); sizeGame(); updateHUD();
   requestAnimationFrame(frame);
 })();
 </script>
