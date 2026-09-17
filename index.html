@@ -252,7 +252,7 @@
     <img id="gifImg" alt="Animation de ta meilleure cascade">
     <p class="saveHint" id="saveHint">Appui long sur l'image pour l'enregistrer ou la partager.</p>
     <div class="board-title">Classement mondial</div>
-    <div class="lbtabs"><button class="lbtab active" data-scope="all">Tous les temps</button><button class="lbtab" data-scope="today">Aujourd'hui</button></div>
+    <div class="lbtabs"><button class="lbtab" data-diffscope="facile">Facile</button><button class="lbtab active" data-diffscope="moyen">Interm.</button><button class="lbtab" data-diffscope="expert">Expert</button></div>
     <ol class="board" id="boardOver"></ol>
     <div class="lb-submit" id="lbSubmit">
       <input id="pseudoInput" class="pseudo" maxlength="16" placeholder="Ton pseudo" autocomplete="off" spellcheck="false">
@@ -270,7 +270,7 @@
 <div class="overlay" id="boardOverlay">
   <div class="card">
     <h2>Classement mondial</h2>
-    <div class="lbtabs"><button class="lbtab active" data-scope="all">Tous les temps</button><button class="lbtab" data-scope="today">Aujourd'hui</button></div>
+    <div class="lbtabs"><button class="lbtab" data-diffscope="facile">Facile</button><button class="lbtab active" data-diffscope="moyen">Interm.</button><button class="lbtab" data-diffscope="expert">Expert</button></div>
     <ol class="board" id="boardMain"></ol>
     <p class="board-note" id="boardNote2"></p>
     <div class="btnrow"><button class="btn ghost" id="boardCloseBtn">Fermer</button></div>
@@ -977,11 +977,13 @@
     showGameOver();
   }
 
-  // Niveaux de difficulté : "moyen" reprend exactement la vitesse d'origine.
+  // Niveaux de difficulté : "moyen" reprend la vitesse d'origine.
+  // Chaque difficulté reste dans SON couloir de vitesse du début à la fin de la partie :
+  // l'accélération est douce et plafonnée, donc Facile ne rattrape jamais Intermédiaire.
   const DIFFS = {
-    facile:  { name:'Facile',       fall0:2.4, fallK:0.030, fallMax:7.5,  spawn0:1250, spawnK:5, spawnMin:520 },
-    moyen:   { name:'Intermédiaire',fall0:3.5, fallK:0.045, fallMax:11,   spawn0:950,  spawnK:7, spawnMin:340 },
-    expert:  { name:'Expert',       fall0:4.3, fallK:0.056, fallMax:13,   spawn0:820,  spawnK:9, spawnMin:280 },
+    facile:  { name:'Facile',        fall0:2.4, fallK:0.008, fallMax:3.6,  spawn0:1250, spawnK:1.2, spawnMin:1000 },
+    moyen:   { name:'Intermédiaire', fall0:4.2, fallK:0.011, fallMax:5.8,  spawn0:950,  spawnK:2.2, spawnMin:700  },
+    expert:  { name:'Expert',        fall0:6.2, fallK:0.022, fallMax:9.5,  spawn0:760,  spawnK:3.0, spawnMin:480  },
   };
   const spawnInterval = ms => { const s=ms/1000, D=DIFFS[S.diff]||DIFFS.moyen; return Math.max(D.spawnMin, D.spawn0 - s*D.spawnK); };
   const fallSpeed = ms => { const s=ms/1000, D=DIFFS[S.diff]||DIFFS.moyen; return Math.min(D.fallMax, D.fall0 + s*D.fallK); }; // rows / sec
@@ -1299,7 +1301,8 @@
     }
     const pin=$('#pseudoInput'); if(pin && !pin.value) pin.value=getPseudo();
     const pb=$('#publishBtn'); if(pb){ pb.disabled=false; pb.textContent='Publier mon score'; }
-    initDB(); updateBoardUI(); renderBoards();
+    lbScope=S.diff; document.querySelectorAll('.lbtab').forEach(b=>b.classList.toggle('active', b.dataset.diffscope===S.diff));
+    initDB(); updateBoardUI(); renderBoards(); fetchBoard();
     show(overOv);
   }
   function generateGif(){
@@ -1388,7 +1391,7 @@
   function savePseudo(p){ try{ localStorage.setItem(K_PSEUDO,p); }catch(e){} }
   function cleanPseudo(s){ return (s||'').replace(/[\u0000-\u001f\u007f]/g,'').replace(/\s+/g,' ').trim().slice(0,16); }
   const playerId=getPid();
-  let supa=null, dbTried=false, lbData=[], myRank=null, lbScope='all', lbChannel=null;
+  let supa=null, dbTried=false, lbData=[], myRank=null, lbScope='moyen', lbChannel=null;
   function todayStartISO(){ const d=new Date(); d.setHours(0,0,0,0); return d.toISOString(); }
   // Pure-JS SHA-256 + HMAC (repli quand crypto.subtle n'est pas dispo, ex. WebView iOS)
   const _K256=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
@@ -1450,19 +1453,17 @@
     if(!supa) return;
     const scope=lbScope, start=todayStartISO();
     try{
-      let q=supa.from('scores').select('player_id,pseudo,score,level,updated_at');
-      if(scope==='today') q=q.gte('updated_at', start);
+      let q=supa.from('scores').select('player_id,pseudo,score,level,updated_at,diff').eq('diff', scope);
       q=q.order('score',{ascending:false}).limit(50);
       const res=await q;
       if(res.error) return;
       lbData=(res.data||[]).map(r=>({id:r.player_id,pseudo:r.pseudo,score:+r.score||0,level:+r.level||1}));
       myRank=null;
       if(!lbData.some(r=>r.id===playerId)){
-        const mine=await supa.from('scores').select('player_id,pseudo,score,level,updated_at').eq('player_id',playerId).limit(1);
+        const mine=await supa.from('scores').select('player_id,pseudo,score,level,updated_at,diff').eq('player_id',playerId).eq('diff',scope).limit(1);
         const me=(mine.data&&mine.data[0])||null;
-        if(me && (scope!=='today' || (me.updated_at && me.updated_at>=start))){
-          let cq=supa.from('scores').select('player_id',{count:'exact',head:true}).gt('score', +me.score||0);
-          if(scope==='today') cq=cq.gte('updated_at', start);
+        if(me){
+          let cq=supa.from('scores').select('player_id',{count:'exact',head:true}).eq('diff',scope).gt('score', +me.score||0);
           const cres=await cq;
           myRank={rank:((cres&&cres.count)||0)+1, id:me.player_id, pseudo:me.pseudo, score:+me.score||0, level:+me.level||1};
         }
@@ -1474,7 +1475,7 @@
     if(!supa || lbChannel) return;
     try{ lbChannel = supa.channel('public:scores').on('postgres_changes',{event:'*',schema:'public',table:'scores'},()=>{ fetchBoard(); }).subscribe(); }catch(e){}
   }
-  function setScope(sc){ if(sc===lbScope||!sc) return; lbScope=sc; document.querySelectorAll('.lbtab').forEach(b=>b.classList.toggle('active', b.dataset.scope===sc)); fetchBoard(); }
+  function setScope(sc){ if(!sc||sc===lbScope) return; lbScope=sc; document.querySelectorAll('.lbtab').forEach(b=>b.classList.toggle('active', b.dataset.diffscope===sc)); fetchBoard(); }
   function makeRow(rank, r, cls){
     const li=document.createElement('li'); if(cls) li.className=cls;
     const rk=document.createElement('span'); rk.className='rk'; rk.textContent=String(rank);
@@ -1488,7 +1489,7 @@
       const ol=document.getElementById(id); if(!ol) continue;
       ol.innerHTML='';
       if(!supa){ const li=document.createElement('li'); li.className='board-empty'; li.textContent='Connexion au classement en ligne\u2026'; ol.appendChild(li); continue; }
-      if(!lbData.length && !myRank){ const li=document.createElement('li'); li.className='board-empty'; li.textContent=(lbScope==='today'?'Aucun score aujourd\u2019hui \u2014 lance-toi\u00a0!':'Aucun score pour l\u2019instant \u2014 sois le premier\u00a0!'); ol.appendChild(li); continue; }
+      if(!lbData.length && !myRank){ const li=document.createElement('li'); li.className='board-empty'; li.textContent='Aucun score en '+((DIFFS[lbScope]||DIFFS.moyen).name)+' \u2014 sois le premier\u00a0!'; ol.appendChild(li); continue; }
       lbData.forEach((r,i)=> ol.appendChild(makeRow(i+1, r, r.id===playerId?'me':'')));
       if(myRank) ol.appendChild(makeRow(myRank.rank, myRank, 'me pin'));
     }
@@ -1511,18 +1512,18 @@
     const pb=document.getElementById('publishBtn'); pb.disabled=true; pb.textContent='Publication\u2026';
     try{
       const ts=Date.now();
-      const sig=await hmacHex(playerId+'|'+S.score+'|'+S.level+'|'+ts);
+      const sig=await hmacHex(playerId+'|'+S.score+'|'+S.level+'|'+ts+'|'+S.diff);
       if(!sig) throw new Error('nosig');
       const res=await fetch(FN_URL, { method:'POST',
         headers:{ 'Content-Type':'application/json', 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY },
-        body: JSON.stringify({ playerId, pseudo:ps, score:S.score, level:S.level, ts, sig }) });
+        body: JSON.stringify({ playerId, pseudo:ps, score:S.score, level:S.level, diff:S.diff, ts, sig }) });
       let info=''; try{ const j=await res.json(); if(j&&j.error) info=' ('+j.error+')'; }catch(_){}
       if(!res.ok) throw new Error('http '+res.status+info);
       pb.textContent='Score publié \u2713'; toast('Score publié\u00a0!');
-      fetchBoard();
+      setScope(S.diff); fetchBoard();
     }catch(e){ pb.disabled=false; pb.textContent='Réessayer'; toast('Échec : '+((e&&e.message)?e.message:'réseau')); }
   }
-  document.addEventListener('click', function(e){ const t=e.target && e.target.closest && e.target.closest('.lbtab'); if(t) setScope(t.dataset.scope); });
+  document.addEventListener('click', function(e){ const t=e.target && e.target.closest && e.target.closest('.lbtab'); if(t) setScope(t.dataset.diffscope); });
 
   function refreshDiffUI(){
     document.querySelectorAll('.diffbtn').forEach(b=>b.classList.toggle('on', b.dataset.diff===S.diff));
