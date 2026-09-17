@@ -305,7 +305,7 @@
 "use strict";
 (function(){
   /* ============================ Constants ============================ */
-  const GAME_VERSION = 'v6';   // <- à incrémenter à chaque nouvelle version publiée
+  const GAME_VERSION = 'v7';   // <- à incrémenter à chaque nouvelle version publiée
   const COLS = 7, ROWS = 12, NC = 5;
   const RAINBOW = 9;   // valeur spéciale dans la grille : bestiole arc-en-ciel
   const FLASH_MS = 150, DROP_MS = 190, GAP_MS = 70;
@@ -515,6 +515,7 @@
     gameCanvas.style.width=boardW+'px'; gameCanvas.style.height=boardH+'px';
     gameCanvas.width=Math.round(boardW*dpr); gameCanvas.height=Math.round(boardH*dpr);
     gtx.setTransform(dpr,0,0,dpr,0,0);
+    S._bgGrad=null; S._guideGrad=null;   // caches invalidés au redimensionnement
     initStreaks();
   }
   let rcell=24, rW=0, rH=0;
@@ -791,9 +792,12 @@
   }
   function drawBg(){
     gtx.clearRect(0,0,boardW,boardH);
-    const g=gtx.createLinearGradient(0,0,0,boardH);
-    g.addColorStop(0,'rgba(15,22,60,0.55)'); g.addColorStop(1,'rgba(8,12,34,0.55)');
-    gtx.fillStyle=g; gtx.fillRect(0,0,boardW,boardH);
+    if(!S._bgGrad || S._bgGradH!==boardH){
+      const g=gtx.createLinearGradient(0,0,0,boardH);
+      g.addColorStop(0,'rgba(15,22,60,0.55)'); g.addColorStop(1,'rgba(8,12,34,0.55)');
+      S._bgGrad=g; S._bgGradH=boardH;
+    }
+    gtx.fillStyle=S._bgGrad; gtx.fillRect(0,0,boardW,boardH);
     gtx.lineWidth=2; gtx.lineCap='round';
     for(const s of S.streaks){ gtx.strokeStyle='rgba(180,205,255,'+s.a+')'; gtx.beginPath(); gtx.moveTo(s.x,s.y); gtx.lineTo(s.x,s.y+s.len); gtx.stroke(); }
   }
@@ -804,9 +808,8 @@
       const st=stackCol(c); if(st<ROWS-2) continue;
       const sev=(st-(ROWS-3))/3;
       const a=Math.min(0.5, 0.14+sev*0.34)*(0.55+0.45*pulse);
-      const g=ctx.createLinearGradient(0,0,0,cell*2.2);
-      g.addColorStop(0,'rgba(255,64,96,'+a+')'); g.addColorStop(1,'rgba(255,64,96,0)');
-      ctx.fillStyle=g; ctx.fillRect(c*cell,0,cell,cell*2.2);
+      ctx.fillStyle='rgba(255,64,96,'+(a*0.55).toFixed(3)+')';
+      ctx.fillRect(c*cell,0,cell,cell*2.2);
     }
     if(S.choke>0){
       const a=0.22+0.28*pulse;
@@ -819,10 +822,13 @@
     const col=S.grab.col, lr=ROWS-1-stackCol(col);
     const pulse=0.5+0.5*Math.sin(performance.now()/260);
     ctx.save();
-    // colonne visée, en dégradé pour bien la distinguer
-    const g=ctx.createLinearGradient(0,0,0,boardH);
-    g.addColorStop(0,'rgba(53,224,208,0.04)'); g.addColorStop(1,'rgba(53,224,208,0.16)');
-    ctx.fillStyle=g; ctx.fillRect(col*cell,0,cell,boardH);
+    // colonne visée (dégradé mis en cache : le recréer à chaque image coûte cher)
+    if(!S._guideGrad || S._guideGradH!==boardH){
+      const g=ctx.createLinearGradient(0,0,0,boardH);
+      g.addColorStop(0,'rgba(53,224,208,0.04)'); g.addColorStop(1,'rgba(53,224,208,0.16)');
+      S._guideGrad=g; S._guideGradH=boardH;
+    }
+    ctx.fillStyle=S._guideGrad; ctx.fillRect(col*cell,0,cell,boardH);
     // bords de la colonne
     ctx.strokeStyle='rgba(53,224,208,'+(0.25+0.2*pulse).toFixed(2)+')'; ctx.lineWidth=2;
     ctx.beginPath(); ctx.moveTo(col*cell+1,0); ctx.lineTo(col*cell+1,boardH);
@@ -891,13 +897,20 @@
 
   /* ============================ Haptique (vibration) ============================ */
   // Haptique : plugin natif Capacitor sur iOS/Android, sinon navigator.vibrate (Android web).
-  let Hap=null, hapReady=false;
+  let Hap=null;
   function initHaptics(){
-    if(hapReady) return; hapReady=true;
+    if(Hap) return Hap;                       // on retente tant qu'on n'a pas trouvé
     try{
       const C=window.Capacitor;
-      if(C && C.Plugins && C.Plugins.Haptics) Hap=C.Plugins.Haptics;
+      if(C){
+        if(C.Plugins && C.Plugins.Haptics) Hap=C.Plugins.Haptics;             // Capacitor 5/6
+        else if(typeof C.registerPlugin==='function') Hap=C.registerPlugin('Haptics');  // Capacitor 6+
+      }
     }catch(e){ Hap=null; }
+    return Hap;
+  }
+  function isNativeApp(){
+    try{ const C=window.Capacitor; return !!(C && (C.isNativePlatform ? C.isNativePlatform() : C.isNative)); }catch(e){ return false; }
   }
   // force: 'light' | 'medium' | 'heavy' ; ms/pattern = repli web
   function buzz(pattern, force){
@@ -1301,10 +1314,7 @@
       S.elapsed+=dt;
       // Déplacement horizontal demandé par le doigt : appliqué une seule fois par image
       if(S.grab && S.grabTarget!=null && S.fallers.indexOf(S.grab)!==-1 && S.grabTarget!==S.grab.col){
-        if(moveFallerToward(S.grab, S.grabTarget)){
-          const now=performance.now();
-          if(now-(S.lastDragBuzz||0)>90){ S.lastDragBuzz=now; buzz(5,'light'); }
-        }
+        moveFallerToward(S.grab, S.grabTarget);   // pas de vibration ici : elle saccade le geste
       }
       const spd=fallSpeed(S.elapsed);
       for(const f of S.fallers){
@@ -1312,10 +1322,10 @@
         const sp=(f===S.grab?spd*0.40:spd);          // on ralentit un peu plus pendant la prise
         f.y += sp*dt/1000;
         // Glissement horizontal : très réactif quand on tient la bestiole, doux sinon
-        const tau=(f===S.grab)?18:32;                 // ms — plus petit = colle au doigt
+        const tau=(f===S.grab)?11:30;                 // ms — plus petit = colle au doigt
         const k=1-Math.exp(-dt/tau);
         f.xr += (f.col-f.xr)*k;
-        if(Math.abs(f.col-f.xr)<0.02) f.xr=f.col;     // arrivée nette
+        if(Math.abs(f.col-f.xr)<0.04) f.xr=f.col;     // arrivée nette
       }
       settleFallers();
       if(anySpace()){ S.choke=0; } else { S.choke+=dt; if(S.choke>=1200) gameOver(); }
@@ -1800,7 +1810,9 @@
   muteBtn.addEventListener('click', ()=>{ S.muted=!S.muted; saveMute(); refreshMute(); if(!S.muted){ ensureAudio(); uiClick(); } });
   const hapticBtn=$('#hapticBtn');
   function refreshHaptic(){
-    if(!hapticsAvailable()){ hapticBtn.style.display='none'; return; }   // masqué si l'appareil ne vibre pas
+    // Masqué uniquement hors app native ET sans API de vibration (ex. ordinateur de bureau)
+    if(!isNativeApp() && !navigator.vibrate){ hapticBtn.style.display='none'; return; }
+    hapticBtn.style.display='';
     hapticBtn.classList.toggle('off', !S.hapticOn);
     hapticBtn.setAttribute('aria-label', S.hapticOn?'Couper la vibration':'Activer la vibration');
     $('#hapticIcon').innerHTML = S.hapticOn
@@ -1830,7 +1842,9 @@
   /* ============================ Boot ============================ */
   { const vt=document.getElementById('verTag'); if(vt) vt.textContent=GAME_VERSION;
     const vs=document.getElementById('verStart'); if(vs) vs.textContent='Bloop Drop '+GAME_VERSION; }
-  load(); loadQuests(); refreshMute(); refreshMusic(); refreshHaptic(); refreshDiffUI(); resetGame(); sizeGame(); updateHUD(); renderQuests();
+  load(); loadQuests(); refreshMute(); refreshMusic(); refreshHaptic(); refreshDiffUI();
+  setTimeout(()=>{ initHaptics(); refreshHaptic(); }, 600);
+  setTimeout(()=>{ initHaptics(); refreshHaptic(); }, 2000); resetGame(); sizeGame(); updateHUD(); renderQuests();
   requestAnimationFrame(frame);
 })();
 </script>
