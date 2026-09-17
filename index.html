@@ -190,6 +190,9 @@
       <button class="iconbtn" id="muteBtn" aria-label="Couper le son" title="Effets sonores">
         <svg id="muteIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
       </button>
+      <button class="iconbtn" id="hapticBtn" aria-label="Vibration" title="Vibration">
+        <svg id="hapticIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="18" rx="2"/><path d="M4 9v6M20 9v6"/></svg>
+      </button>
       <button class="iconbtn" id="pauseBtn" aria-label="Pause" title="Pause">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 5v14M16 5v14"/></svg>
       </button>
@@ -302,7 +305,7 @@
 "use strict";
 (function(){
   /* ============================ Constants ============================ */
-  const GAME_VERSION = 'v5';   // <- à incrémenter à chaque nouvelle version publiée
+  const GAME_VERSION = 'v6';   // <- à incrémenter à chaque nouvelle version publiée
   const COLS = 7, ROWS = 12, NC = 5;
   const RAINBOW = 9;   // valeur spéciale dans la grille : bestiole arc-en-ciel
   const FLASH_MS = 150, DROP_MS = 190, GAP_MS = 70;
@@ -360,6 +363,7 @@
     lastTs:0,
     muted:false,
     musicOn:true,
+    hapticOn:true,
     musicTrack:0,
     gifBlob:null, gifUrl:null,
     wasNewBest:false,
@@ -373,11 +377,12 @@
   };
 
   /* ============================ Storage ============================ */
-  const K_BEST='cascadeTap.best', K_MUTE='cascadeTap.mute', K_MUSIC='cascadeTap.music', K_CASC='cascadeTap.cascade', K_DIFF='cascadeTap.diff';
+  const K_BEST='cascadeTap.best', K_MUTE='cascadeTap.mute', K_MUSIC='cascadeTap.music', K_CASC='cascadeTap.cascade', K_DIFF='cascadeTap.diff', K_HAPTIC='cascadeTap.haptic';
   function load(){
     try{ const b=parseInt(localStorage.getItem(K_BEST),10); if(!isNaN(b)) S.best=b; }catch(e){}
     try{ S.muted = localStorage.getItem(K_MUTE)==='1'; }catch(e){}
     try{ const mm=localStorage.getItem(K_MUSIC); if(mm!==null) S.musicOn = mm!=='0'; }catch(e){}
+    try{ const hp=localStorage.getItem(K_HAPTIC); if(hp!==null) S.hapticOn = hp!=='0'; }catch(e){}
     try{ const d=localStorage.getItem(K_DIFF); if(d && DIFFS[d]) S.diff=d; }catch(e){}
     try{ const raw=localStorage.getItem(K_CASC); if(raw) S.allTime=fromStore(JSON.parse(raw)); }catch(e){}
   }
@@ -385,6 +390,7 @@
   function saveMute(){ try{ localStorage.setItem(K_MUTE, S.muted?'1':'0'); }catch(e){} }
   function saveMusic(){ try{ localStorage.setItem(K_MUSIC, S.musicOn?'1':'0'); }catch(e){} }
   function saveDiff(){ try{ localStorage.setItem(K_DIFF, S.diff); }catch(e){} }
+  function saveHaptic(){ try{ localStorage.setItem(K_HAPTIC, S.hapticOn?'1':'0'); }catch(e){} }
   function saveCascade(c){ try{ localStorage.setItem(K_CASC, JSON.stringify(toStore(c))); }catch(e){} }
 
   function toStore(c){
@@ -846,7 +852,7 @@
     const cx=sx/step.centers.length, cy=sy/step.centers.length;
     S.popups.push({x:cx,y:cy,t:0,dur:900,text:'+'+step.points+(chain>1?('  ×'+chain):''),color:chain>1?'#35e0d0':'#ffffff',big:chain>=3});
     if(!reduceMotion) S.shake=Math.min(14, S.shake+chain*1.6);
-    buzz(chain>=3 ? [18,40,28] : (chain===2 ? [16,30,16] : 12));
+    buzz(chain>=3 ? [18,40,28] : (chain===2 ? [16,30,16] : 12), chain>=3?'heavy':(chain===2?'medium':'light'));
     pop(chain);
   }
   function bigPopup(text){ S.popups.push({x:boardW/2,y:boardH*0.42,t:0,dur:1200,text,color:'#35e0d0',banner:true}); }
@@ -884,10 +890,31 @@
   }
 
   /* ============================ Haptique (vibration) ============================ */
-  function buzz(pattern){
-    if(S.muted) return;                    // le bouton "effets" coupe aussi la vibration
+  // Haptique : plugin natif Capacitor sur iOS/Android, sinon navigator.vibrate (Android web).
+  let Hap=null, hapReady=false;
+  function initHaptics(){
+    if(hapReady) return; hapReady=true;
+    try{
+      const C=window.Capacitor;
+      if(C && C.Plugins && C.Plugins.Haptics) Hap=C.Plugins.Haptics;
+    }catch(e){ Hap=null; }
+  }
+  // force: 'light' | 'medium' | 'heavy' ; ms/pattern = repli web
+  function buzz(pattern, force){
+    if(!S.hapticOn) return;
+    initHaptics();
+    if(Hap){
+      try{
+        const style = force || (Array.isArray(pattern) ? (pattern.length>=5?'HEAVY':'MEDIUM') : (pattern>=16?'MEDIUM':'LIGHT'));
+        if(style==='HEAVY'||style==='heavy'){ Hap.impact({style:'HEAVY'}); }
+        else if(style==='MEDIUM'||style==='medium'){ Hap.impact({style:'MEDIUM'}); }
+        else { Hap.impact({style:'LIGHT'}); }
+        return;
+      }catch(e){}
+    }
     try{ if(navigator.vibrate) navigator.vibrate(pattern); }catch(e){}
   }
+  function hapticsAvailable(){ initHaptics(); return !!(Hap || navigator.vibrate); }
 
   /* ============================ Audio ============================ */
   let actx=null, audioPrimed=false;
@@ -949,7 +976,7 @@
     }catch(e){}
   }
   function fireRecord(){
-    buzz([30,60,30,60,60]);
+    buzz([30,60,30,60,60],'heavy');
     applause();
     bigPopup('Record battu\u00a0!');
     const N=reduceMotion?18:82;
@@ -1052,7 +1079,7 @@
     S.state='over';
     stopMusic(0.4);
     const improved = S.score>0 && S.score>S.startBest;
-    buzz([45,70,45]);
+    buzz([45,70,45],'heavy');
     gameOverSound();
     if(improved && !S.recordFired) applause();
     if(S.score>=S.best){ S.best=S.score; }
@@ -1146,7 +1173,7 @@
     celebrate(nl, S.shape!==prevShape);
   }
   function celebrate(level, eraChanged){
-    buzz(eraChanged ? [26,50,26,50,42] : [20,45,30]);
+    buzz(eraChanged ? [26,50,26,50,42] : [20,45,30], eraChanged?'heavy':'medium');
     playLevelSound(eraChanged);
     const N=Math.round((reduceMotion?16:70)*(eraChanged?1.5:1));
     for(let i=0;i<N;i++){
@@ -1258,12 +1285,12 @@
     if(S.grid[row][col]===-1) return;
     if(S.grid[row][col]===RAINBOW){
       const res=computeCascade(S.grid,row,col,true);
-      if(res){ S.rainbowUsed++; questProgress('rainbow',1,'add'); buzz([30,50,30,50,50]); bigPopup('Arc-en-ciel\u00a0!'); startResolve(res); }
+      if(res){ S.rainbowUsed++; questProgress('rainbow',1,'add'); buzz([30,50,30,50,50],'heavy'); bigPopup('Arc-en-ciel\u00a0!'); startResolve(res); }
       return;
     }
     const grp=findGroup(S.grid,row,col);
     if(grp.length>=2){ const res=computeCascade(S.grid,row,col); if(res) startResolve(res); }
-    else { S.popups.push({x:(col+0.5)*cell,y:(row+0.5)*cell,t:0,dur:500,text:'✕',color:'rgba(200,210,240,.7)'}); if(!reduceMotion) S.shake=Math.min(S.shake+2,5); buzz(8); failSound(); }
+    else { S.popups.push({x:(col+0.5)*cell,y:(row+0.5)*cell,t:0,dur:500,text:'✕',color:'rgba(200,210,240,.7)'}); if(!reduceMotion) S.shake=Math.min(S.shake+2,5); buzz(8,'light'); failSound(); }
   }
 
   /* ============================ Main loop ============================ */
@@ -1276,7 +1303,7 @@
       if(S.grab && S.grabTarget!=null && S.fallers.indexOf(S.grab)!==-1 && S.grabTarget!==S.grab.col){
         if(moveFallerToward(S.grab, S.grabTarget)){
           const now=performance.now();
-          if(now-(S.lastDragBuzz||0)>90){ S.lastDragBuzz=now; buzz(5); }
+          if(now-(S.lastDragBuzz||0)>90){ S.lastDragBuzz=now; buzz(5,'light'); }
         }
       }
       const spd=fallSpeed(S.elapsed);
@@ -1731,7 +1758,7 @@
     if(changed) saveQuests();
   }
   function questDone(q){
-    buzz([25,45,25,45,45]);
+    buzz([25,45,25,45,45],'heavy');
     bigPopup('Défi réussi\u00a0!');
     toast('Défi réussi : '+q.label);
     addScore(500);
@@ -1771,6 +1798,19 @@
       ? '<path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M22 9l-6 6"/><path d="M16 9l6 6"/>'
       : '<path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/>'; }
   muteBtn.addEventListener('click', ()=>{ S.muted=!S.muted; saveMute(); refreshMute(); if(!S.muted){ ensureAudio(); uiClick(); } });
+  const hapticBtn=$('#hapticBtn');
+  function refreshHaptic(){
+    if(!hapticsAvailable()){ hapticBtn.style.display='none'; return; }   // masqué si l'appareil ne vibre pas
+    hapticBtn.classList.toggle('off', !S.hapticOn);
+    hapticBtn.setAttribute('aria-label', S.hapticOn?'Couper la vibration':'Activer la vibration');
+    $('#hapticIcon').innerHTML = S.hapticOn
+      ? '<rect x="8" y="3" width="8" height="18" rx="2"/><path d="M4 9v6M20 9v6"/>'
+      : '<rect x="8" y="3" width="8" height="18" rx="2"/><path d="M3 3l18 18"/>';
+  }
+  hapticBtn.addEventListener('click', ()=>{
+    S.hapticOn=!S.hapticOn; saveHaptic(); refreshHaptic();
+    if(S.hapticOn) buzz(20,'medium');      // aperçu immédiat
+  });
   const musicBtn=$('#musicBtn');
   function refreshMusic(){ musicBtn.classList.toggle('off', !S.musicOn); musicBtn.setAttribute('aria-label', S.musicOn?'Couper la musique':'Activer la musique');
     $('#musicIcon').innerHTML = S.musicOn
@@ -1790,7 +1830,7 @@
   /* ============================ Boot ============================ */
   { const vt=document.getElementById('verTag'); if(vt) vt.textContent=GAME_VERSION;
     const vs=document.getElementById('verStart'); if(vs) vs.textContent='Bloop Drop '+GAME_VERSION; }
-  load(); loadQuests(); refreshMute(); refreshMusic(); refreshDiffUI(); resetGame(); sizeGame(); updateHUD(); renderQuests();
+  load(); loadQuests(); refreshMute(); refreshMusic(); refreshHaptic(); refreshDiffUI(); resetGame(); sizeGame(); updateHUD(); renderQuests();
   requestAnimationFrame(frame);
 })();
 </script>
