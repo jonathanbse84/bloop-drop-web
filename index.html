@@ -145,6 +145,17 @@
   .splash-sub{font-family:'Fredoka',system-ui,sans-serif;font-weight:500;font-size:14px;color:#8ea0d6;opacity:0;animation:sUp .5s ease .78s forwards}
   @keyframes sUp{to{opacity:1;transform:none}}
   @media (prefers-reduced-motion:reduce){.splash-logo i,.splash-title,.splash-sub{animation-duration:.01s}}
+  .qtitle{ font-size:13px; font-weight:600; color:var(--muted); margin:2px 0 8px; }
+  .quests{ list-style:none; margin:0 0 18px; padding:0; display:grid; gap:6px; text-align:left; }
+  .quest{ display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:12px;
+    border:1px solid var(--line); background:rgba(0,0,0,.15); font-size:13.5px; }
+  .quest .qic{ width:20px; height:20px; flex:0 0 auto; border-radius:50%; display:grid; place-items:center;
+    font-size:12px; font-weight:700; color:var(--muted); background:rgba(255,255,255,.06); }
+  .quest .qtx{ flex:1; color:#d6deff; line-height:1.3; }
+  .quest .qpr{ font-variant-numeric:tabular-nums; font-size:12px; color:var(--muted); font-weight:600; }
+  .quest.done{ background:rgba(53,224,208,.12); border-color:rgba(53,224,208,.28); }
+  .quest.done .qic{ background:rgba(53,224,208,.25); color:var(--accent); }
+  .quest.done .qtx{ color:var(--accent); }
   .difftitle{ font-size:13px; font-weight:600; color:var(--muted); margin:0 0 8px; }
   .diffs{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:0 0 18px; }
   .diffbtn{ padding:12px 6px; border-radius:13px; border:1px solid var(--line); background:linear-gradient(180deg,var(--panel-2),var(--panel));
@@ -211,6 +222,8 @@
       <div class="rule"><span class="n">3</span><span>À la retombée, chaque nouvelle paire explose en chaîne — vise les gros combos.</span></div>
       <div class="rule"><span class="n">4</span><span>Plus la chaîne est longue, plus le score grimpe.</span></div>
     </div>
+    <div class="qtitle">Défis du jour</div>
+    <ol class="quests" id="questList"></ol>
     <div class="difftitle">Difficulté</div>
     <div class="diffs" id="diffPick">
       <button class="diffbtn" data-diff="facile">Facile<small>tout en douceur</small></button>
@@ -251,6 +264,8 @@
     <div class="cascadeMeta" id="cascadeMeta"></div>
     <img id="gifImg" alt="Animation de ta meilleure cascade">
     <p class="saveHint" id="saveHint">Appui long sur l'image pour l'enregistrer ou la partager.</p>
+    <div class="qtitle">Défis du jour</div>
+    <ol class="quests" id="questListOver"></ol>
     <div class="board-title">Classement mondial</div>
     <div class="lbtabs"><button class="lbtab" data-diffscope="facile">Facile</button><button class="lbtab active" data-diffscope="moyen">Interm.</button><button class="lbtab" data-diffscope="expert">Expert</button></div>
     <ol class="board" id="boardOver"></ol>
@@ -284,6 +299,7 @@
 (function(){
   /* ============================ Constants ============================ */
   const COLS = 7, ROWS = 12, NC = 5;
+  const RAINBOW = 9;   // valeur spéciale dans la grille : bestiole arc-en-ciel
   const FLASH_MS = 150, DROP_MS = 190, GAP_MS = 70;
   const STEP_MS = FLASH_MS + DROP_MS + GAP_MS;
 
@@ -342,6 +358,10 @@
     startBest:0,
     recordFired:false,
     diff:'moyen',
+    rainbowDue:false,   // une arc-en-ciel est à faire tomber
+    rainbowUsed:0,
+    quests:null,
+    popped:0,
   };
 
   /* ============================ Storage ============================ */
@@ -387,7 +407,7 @@
   function stackCol(c){ let n=0; for(let r=0;r<ROWS;r++) if(S.grid[r][c]!==-1) n++; return n; }
 
   function findGroup(g, r0, c0){
-    const color=g[r0][c0]; if(color===-1) return [];
+    const color=g[r0][c0]; if(color===-1||color===RAINBOW) return [];
     const seen=new Set(), out=[], st=[[r0,c0]]; seen.add(r0*COLS+c0);
     while(st.length){
       const [r,c]=st.pop(); out.push([r,c]);
@@ -405,7 +425,7 @@
     const seen=new Uint8Array(ROWS*COLS), groups=[];
     for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
       const key=r*COLS+c;
-      if(seen[key]||g[r][c]===-1) continue;
+      if(seen[key]||g[r][c]===-1||g[r][c]===RAINBOW) continue;
       const color=g[r][c], comp=[], st=[[r,c]]; seen[key]=1;
       while(st.length){
         const [cr,cc]=st.pop(); comp.push([cr,cc]);
@@ -431,10 +451,23 @@
   }
 
   /* Compute the whole cascade produced by tapping (r0,c0). Pure over a clone. */
-  function computeCascade(grid, r0, c0){
+  function rainbowTargets(g, r0, c0){
+    // Couleur visée : la plus présente parmi les voisins, sinon la plus fréquente de la grille.
+    const tally=new Map();
+    const nb=[[r0-1,c0],[r0+1,c0],[r0,c0-1],[r0,c0+1]];
+    for(const [r,c] of nb){ if(r<0||r>=ROWS||c<0||c>=COLS) continue; const v=g[r][c]; if(v===-1||v===RAINBOW) continue; tally.set(v,(tally.get(v)||0)+1); }
+    if(!tally.size){ for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){ const v=g[r][c]; if(v===-1||v===RAINBOW) continue; tally.set(v,(tally.get(v)||0)+1); } }
+    if(!tally.size) return null;
+    let best=null,bn=-1; for(const [v,n] of tally){ if(n>bn){bn=n;best=v;} }
+    const cells=[[r0,c0]];
+    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++) if(g[r][c]===best) cells.push([r,c]);
+    return cells;
+  }
+  function computeCascade(grid, r0, c0, rainbow){
     const g0=cloneGrid(grid);
-    const first=findGroup(g0, r0, c0);
-    if(first.length<2) return null;
+    let first;
+    if(rainbow){ first=rainbowTargets(g0, r0, c0); if(!first||first.length<2) return null; }
+    else { first=findGroup(g0, r0, c0); if(first.length<2) return null; }
     const steps=[]; let g=g0, chain=0, total=0, clearCells=first;
     while(true){
       chain++;
@@ -452,7 +485,7 @@
       clearCells=[]; for(const grp of groups) for(const cell of grp) clearCells.push(cell);
     }
     let bonus=0; if(chain>=2) bonus=(chain-1)*chain*40; total+=bonus;
-    return {steps, chain, total, bonus, finalGrid:g};
+    return {steps, chain, total, bonus, finalGrid:g, wasRainbow:!!rainbow};
   }
 
   /* ============================ Layout / sizing ============================ */
@@ -645,12 +678,34 @@
     else if(shape===0){ rr(ctx,bx+bs*0.13,by+bs*0.1,bs*0.74,bs*0.33,bs*0.17); ctx.fill(); }
     else { ctx.beginPath(); ctx.ellipse(bx+bs/2,by+bs*0.28,bs*0.29,bs*0.15,0,0,Math.PI*2); ctx.fill(); }
   }
+  function drawRainbowBlock(ctx,bx,by,bs,shape,opt){
+    const t=(typeof performance!=='undefined'? performance.now():0)/1000;
+    const g=ctx.createLinearGradient(bx,by,bx+bs,by+bs);
+    for(let i=0;i<=5;i++){
+      const k=i/5;
+      const hue=((t*60)+k*300)%360;
+      g.addColorStop(k,'hsl('+hue.toFixed(0)+',85%,62%)');
+    }
+    ctx.save(); ctx.translate(0,bs*0.06); bodyPath(ctx,bx,by,bs,shape); ctx.fillStyle='rgba(0,0,0,.35)'; ctx.fill(); ctx.restore();
+    bodyPath(ctx,bx,by,bs,shape); ctx.fillStyle=g; ctx.fill();
+    // halo
+    ctx.save(); bodyPath(ctx,bx,by,bs,shape); ctx.strokeStyle='rgba(255,255,255,'+(0.55+0.35*Math.sin(t*6)).toFixed(2)+')'; ctx.lineWidth=Math.max(1.5,bs*0.05); ctx.stroke(); ctx.restore();
+    // yeux + étoile
+    const cx=bx+bs/2, cy=by+bs*0.5;
+    drawEyes(ctx,cx,cy-bs*0.04,bs*0.1,bs*0.17);
+    ctx.save(); ctx.translate(cx,cy+bs*0.2); ctx.rotate(t*1.5);
+    ctx.fillStyle='#ffffff'; ctx.beginPath();
+    for(let i=0;i<10;i++){ const r=(i%2?bs*0.05:bs*0.11), a=i*Math.PI/5-Math.PI/2; const px=Math.cos(a)*r, py=Math.sin(a)*r; i?ctx.lineTo(px,py):ctx.moveTo(px,py); }
+    ctx.closePath(); ctx.fill(); ctx.restore();
+    if(opt && opt.overlay>0){ bodyPath(ctx,bx,by,bs,shape); ctx.fillStyle='rgba(255,255,255,'+opt.overlay+')'; ctx.fill(); }
+  }
   function drawBlock(ctx,x,y,s,ci,opt){
     opt=opt||{};
     const sp=opt.sp||0, shape=opt.shape||0, scale=opt.scale||1;
     const m=s*0.06;
     let bs=(s-2*m)*scale;
     const bx=x+m+((s-2*m)-bs)/2, by=y+m+((s-2*m)-bs)/2;
+    if(ci===RAINBOW){ drawRainbowBlock(ctx,bx,by,bs,shape,opt); return; }
     const col=COLORS[ci];
     // shadow rim
     ctx.save(); ctx.translate(0,bs*0.06); bodyPath(ctx,bx,by,bs,shape); ctx.fillStyle=col.l; ctx.fill(); ctx.restore();
@@ -761,7 +816,7 @@
     const perCell = S.particles.length>140?1:3;
     for(const [r,c] of step.centers){
       const px=(c+0.5)*cell, py=(r+0.5)*cell; sx+=px; sy+=py;
-      const ci=step.before[r][c];
+      const ci=step.before[r][c]; S.popped++;
       for(let i=0;i<perCell;i++){
         const ang=Math.random()*Math.PI*2, sp=40+Math.random()*160;
         S.particles.push({x:px,y:py,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp-40,life:1,ci,sz:cell*(0.12+Math.random()*0.12)});
@@ -770,6 +825,7 @@
     const cx=sx/step.centers.length, cy=sy/step.centers.length;
     S.popups.push({x:cx,y:cy,t:0,dur:900,text:'+'+step.points+(chain>1?('  ×'+chain):''),color:chain>1?'#35e0d0':'#ffffff',big:chain>=3});
     if(!reduceMotion) S.shake=Math.min(14, S.shake+chain*1.6);
+    buzz(chain>=3 ? [18,40,28] : (chain===2 ? [16,30,16] : 12));
     pop(chain);
   }
   function bigPopup(text){ S.popups.push({x:boardW/2,y:boardH*0.42,t:0,dur:1200,text,color:'#35e0d0',banner:true}); }
@@ -782,7 +838,7 @@
   }
   function drawParticles(ctx){
     for(const p of S.particles){
-      ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=COLORS[p.ci].b;
+      ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=(COLORS[p.ci]?COLORS[p.ci].b:'#ffffff');
       rr(ctx,p.x-p.sz/2,p.y-p.sz/2,p.sz,p.sz,p.sz*0.3); ctx.fill();
     }
     ctx.globalAlpha=1;
@@ -804,6 +860,12 @@
       }
       ctx.restore();
     }
+  }
+
+  /* ============================ Haptique (vibration) ============================ */
+  function buzz(pattern){
+    if(S.muted) return;                    // le bouton "effets" coupe aussi la vibration
+    try{ if(navigator.vibrate) navigator.vibrate(pattern); }catch(e){}
   }
 
   /* ============================ Audio ============================ */
@@ -866,6 +928,7 @@
     }catch(e){}
   }
   function fireRecord(){
+    buzz([30,60,30,60,60]);
     applause();
     bigPopup('Record battu\u00a0!');
     const N=reduceMotion?18:82;
@@ -957,20 +1020,25 @@
     S.grid=newGrid(); S.fallers=[]; S.score=0; S.elapsed=0; S.spawnAcc=0;
     S.anim=null; S.particles=[]; S.popups=[]; S.shake=0; S.choke=0; S.bestCascadeGame=null;
     S.level=1; S.species=0; S.shape=0; S.musicTrack=0; S.recordFired=false;
+    S.rainbowDue=false; S.rainbowUsed=0; S.popped=0;
     S.gifBlob=null; if(S.gifUrl){ URL.revokeObjectURL(S.gifUrl); S.gifUrl=null; }
     updateHUD(); updateFooter();
   }
-  function startGame(){ ensureAudio(); resetGame(); S.startBest=S.best; hide(startOv); hide(overOv); hide(pauseOv); hide(boardOv); S.state='playing'; updateFooter(); startMusic(); initDB(); }
+  function startGame(){ ensureAudio(); loadQuests(); renderQuests(); resetGame(); S.startBest=S.best; hide(startOv); hide(overOv); hide(pauseOv); hide(boardOv); S.state='playing'; updateFooter(); startMusic(); initDB(); }
   function pauseGame(){ if(S.state!=='playing'&&S.state!=='resolving') return; S.state='paused'; stopMusic(); show(pauseOv); }
   function resumeGame(){ if(S.state!=='paused') return; hide(pauseOv); S.state = S.anim ? 'resolving' : 'playing'; startMusic(); }
   function gameOver(){
     S.state='over';
     stopMusic(0.4);
     const improved = S.score>0 && S.score>S.startBest;
+    buzz([45,70,45]);
     gameOverSound();
     if(improved && !S.recordFired) applause();
     if(S.score>=S.best){ S.best=S.score; }
     saveBest();
+    questProgress('pop', S.popped, 'add');
+    questProgress('games', 1, 'add');
+    renderQuests();
     S.chosen = S.bestCascadeGame || S.allTime || null;
     S.replayT=0;
     updateFooter();
@@ -1001,7 +1069,9 @@
     if(!cands.length) return;
     let rnd=Math.random()*total, col=cands[cands.length-1];
     for(let i=0;i<cands.length;i++){ rnd-=weights[i]; if(rnd<=0){ col=cands[i]; break; } }
-    S.fallers.push({col, y:-1 - Math.random()*0.4, ci:(Math.random()*NC)|0, xr:col});
+    let ci=(Math.random()*NC)|0;
+    if(S.rainbowDue){ ci=RAINBOW; S.rainbowDue=false; }
+    S.fallers.push({col, y:-1 - Math.random()*0.4, ci, xr:col});
   }
   function settleFallers(){
     for(let i=S.fallers.length-1;i>=0;i--){
@@ -1027,6 +1097,8 @@
     if(a.t >= n*STEP_MS + 60){
       if(a.res.bonus){ addScore(a.res.bonus); }
       if(a.res.chain>=3){ bigPopup('Combo ×'+a.res.chain); }
+      questProgress('combo', a.res.chain, 'max');
+      if(a.res.chain>=4 && !a.res.wasRainbow){ S.rainbowDue=true; toast('Bonus arc-en-ciel\u00a0! Il arrive\u2026'); }
       commitCascade(a.res);
       S.anim=null; S.state='playing';
     }
@@ -1037,6 +1109,7 @@
     S.score+=n; if(S.score>S.best) S.best=S.score;
     if(!S.recordFired && S.startBest>0 && S.score>S.startBest){ S.recordFired=true; fireRecord(); }
     const nl=levelForScore(S.score); if(nl>S.level) levelUp(nl);
+    questProgress('score', S.score, 'max');
     updateHUD();
   }
   function threshold(n){ return 600*n + 200*n*n; }         // points to reach level n+1
@@ -1047,10 +1120,12 @@
     S.species=(nl-1)%SPECIES.length;
     S.shape=Math.floor((nl-1)/SPECIES.length)%SHAPE_NAMES.length;
     setTrack(nl-1);
+    questProgress('level', nl, 'max');
     updateFooter();
     celebrate(nl, S.shape!==prevShape);
   }
   function celebrate(level, eraChanged){
+    buzz(eraChanged ? [26,50,26,50,42] : [20,45,30]);
     playLevelSound(eraChanged);
     const N=Math.round((reduceMotion?16:70)*(eraChanged?1.5:1));
     for(let i=0;i<N;i++){
@@ -1130,9 +1205,14 @@
     const col=Math.floor(x/cell), row=Math.floor(y/cell);
     if(col<0||col>=COLS||row<0||row>=ROWS) return;
     if(S.grid[row][col]===-1) return;
+    if(S.grid[row][col]===RAINBOW){
+      const res=computeCascade(S.grid,row,col,true);
+      if(res){ S.rainbowUsed++; questProgress('rainbow',1,'add'); buzz([30,50,30,50,50]); bigPopup('Arc-en-ciel\u00a0!'); startResolve(res); }
+      return;
+    }
     const grp=findGroup(S.grid,row,col);
     if(grp.length>=2){ const res=computeCascade(S.grid,row,col); if(res) startResolve(res); }
-    else { S.popups.push({x:(col+0.5)*cell,y:(row+0.5)*cell,t:0,dur:500,text:'✕',color:'rgba(200,210,240,.7)'}); if(!reduceMotion) S.shake=Math.min(S.shake+2,5); failSound(); }
+    else { S.popups.push({x:(col+0.5)*cell,y:(row+0.5)*cell,t:0,dur:500,text:'✕',color:'rgba(200,210,240,.7)'}); if(!reduceMotion) S.shake=Math.min(S.shake+2,5); buzz(8); failSound(); }
   }
 
   /* ============================ Main loop ============================ */
@@ -1301,6 +1381,7 @@
     }
     const pin=$('#pseudoInput'); if(pin && !pin.value) pin.value=getPseudo();
     const pb=$('#publishBtn'); if(pb){ pb.disabled=false; pb.textContent='Publier mon score'; }
+    renderQuests();
     lbScope=S.diff; document.querySelectorAll('.lbtab').forEach(b=>b.classList.toggle('active', b.dataset.diffscope===S.diff));
     initDB(); updateBoardUI(); renderBoards(); fetchBoard();
     show(overOv);
@@ -1540,6 +1621,69 @@
     if(b){ ensureAudio(); uiClick(); setDiff(b.dataset.diff); }
   });
 
+  /* ============================ Défis quotidiens ============================ */
+  const K_QUEST='cascadeTap.quests';
+  const QUEST_POOL = [
+    { id:'score',   mk:n=>({label:'Marque '+n.toLocaleString('fr-FR')+' points en une partie', goal:n, kind:'score'}),   vals:[1500,3000,5000,8000] },
+    { id:'combo',   mk:n=>({label:'Réalise un combo ×'+n,                                   goal:n, kind:'combo'}),   vals:[3,4,5,6] },
+    { id:'pop',     mk:n=>({label:'Explose '+n+' bestioles',                                 goal:n, kind:'pop'}),     vals:[60,100,150,220] },
+    { id:'level',   mk:n=>({label:'Atteins le niveau '+n,                                    goal:n, kind:'level'}),   vals:[3,4,5,6] },
+    { id:'rainbow', mk:n=>({label:'Utilise '+n+' bonus arc-en-ciel',                          goal:n, kind:'rainbow'}), vals:[1,2,3] },
+    { id:'games',   mk:n=>({label:'Termine '+n+' parties',                                    goal:n, kind:'games'}),   vals:[2,3,5] },
+  ];
+  function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function seedFrom(str){ let h=2166136261>>>0; for(let i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=Math.imul(h,16777619)>>>0; } return h; }
+  function rngFrom(seed){ let x=seed||1; return ()=>{ x^=x<<13; x>>>=0; x^=x>>17; x^=x<<5; x>>>=0; return x/4294967296; }; }
+  function buildDailyQuests(){
+    const rnd=rngFrom(seedFrom(todayKey()));
+    const pool=QUEST_POOL.slice();
+    const out=[];
+    for(let i=0;i<3 && pool.length;i++){
+      const pi=Math.floor(rnd()*pool.length), def=pool.splice(pi,1)[0];
+      const v=def.vals[Math.floor(rnd()*def.vals.length)];
+      const q=def.mk(v); q.id=def.id; q.done=false; q.prog=0; out.push(q);
+    }
+    return out;
+  }
+  function loadQuests(){
+    let st=null;
+    try{ st=JSON.parse(localStorage.getItem(K_QUEST)||'null'); }catch(e){}
+    if(!st || st.day!==todayKey()){ st={ day:todayKey(), quests:buildDailyQuests() }; saveQuests(st); }
+    S.quests=st;
+  }
+  function saveQuests(st){ try{ localStorage.setItem(K_QUEST, JSON.stringify(st||S.quests)); }catch(e){} }
+  function questProgress(kind, value, mode){
+    if(!S.quests) return;
+    let changed=false;
+    for(const q of S.quests.quests){
+      if(q.done || q.kind!==kind) continue;
+      const nv = (mode==='max') ? Math.max(q.prog, value) : (q.prog + value);
+      if(nv!==q.prog){ q.prog=nv; changed=true; }
+      if(q.prog>=q.goal){ q.done=true; changed=true; questDone(q); }
+    }
+    if(changed) saveQuests();
+  }
+  function questDone(q){
+    buzz([25,45,25,45,45]);
+    bigPopup('Défi réussi\u00a0!');
+    toast('Défi réussi : '+q.label);
+    addScore(500);
+  }
+  function renderQuests(){
+    if(!S.quests) return;
+    for(const boxId of ['questList','questListOver']){
+    const box=document.getElementById(boxId); if(!box) continue;
+    box.innerHTML='';
+    for(const q of S.quests.quests){
+      const li=document.createElement('li'); li.className='quest'+(q.done?' done':'');
+      const ic=document.createElement('span'); ic.className='qic'; ic.textContent=q.done?'✓':'○';
+      const tx=document.createElement('span'); tx.className='qtx'; tx.textContent=q.label;
+      const pr=document.createElement('span'); pr.className='qpr'; pr.textContent=Math.min(q.prog,q.goal)+'/'+q.goal;
+      li.append(ic,tx,pr); box.appendChild(li);
+    }
+    }
+  }
+
   /* ============================ Wire up ============================ */
   $('#playBtn').addEventListener('click', startGame);
   $('#againBtn').addEventListener('click', startGame);
@@ -1577,7 +1721,7 @@
   ['pointerdown','touchend','keydown'].forEach(ev=>window.addEventListener(ev, unlockAudio, {passive:true}));
 
   /* ============================ Boot ============================ */
-  load(); refreshMute(); refreshMusic(); refreshDiffUI(); resetGame(); sizeGame(); updateHUD();
+  load(); loadQuests(); refreshMute(); refreshMusic(); refreshDiffUI(); resetGame(); sizeGame(); updateHUD(); renderQuests();
   requestAnimationFrame(frame);
 })();
 </script>
