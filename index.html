@@ -60,6 +60,8 @@
   canvas#game{ display:block; border-radius:16px; touch-action:none; background:rgba(6,10,30,.55); }
   .foot{ height:var(--foot); display:flex; align-items:center; gap:8px; color:var(--muted); font-size:13px; font-weight:500; }
   .foot .dot{ width:6px; height:6px; border-radius:50%; background:var(--accent); opacity:.7; }
+  .foot .ver{ margin-left:8px; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600;
+    color:var(--muted); background:rgba(255,255,255,.06); border:1px solid var(--line); letter-spacing:.3px; }
   /* ---- Overlays ---- */
   .overlay{
     position:fixed; inset:0; display:none; align-items:center; justify-content:center; padding:18px;
@@ -95,6 +97,7 @@
   @media (prefers-reduced-motion: reduce){ .card{ animation:none } }
   .brand{ display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:6px; }
   .brand .mark{ width:38px; height:38px; }
+  .verstart{ font-size:11px; font-weight:600; color:var(--muted); letter-spacing:.4px; margin:-2px 0 12px; opacity:.8; }
   h1{ font-size:32px; font-weight:700; margin:2px 0 4px; letter-spacing:.4px; }
   h2{ font-size:26px; font-weight:700; margin:0 0 14px; }
   .lede{ color:var(--muted); font-size:15px; font-weight:400; line-height:1.5; margin:0 auto 20px; max-width:32ch; }
@@ -200,7 +203,7 @@
     </div>
   </div>
 
-  <div class="foot"><span class="dot"></span><span id="footText">Touche un groupe pour déclencher la cascade</span></div>
+  <div class="foot"><span class="dot"></span><span id="footText">Touche un groupe pour déclencher la cascade</span><span id="verTag" class="ver"></span></div>
 </div>
 
 <!-- Start -->
@@ -215,6 +218,7 @@
       </svg>
       <h1>Bloop&nbsp;Drop</h1>
     </div>
+    <div class="verstart" id="verStart"></div>
     <p class="lede">Une pluie de petites bestioles ne s'arrête jamais. Vide la grille, enchaîne les cascades et passe les niveaux — à chacun, une nouvelle bande débarque.</p>
     <div class="rules">
       <div class="rule"><span class="n">1</span><span>Touche une bestiole entourée d'une identique pour l'exploser.</span></div>
@@ -298,6 +302,7 @@
 "use strict";
 (function(){
   /* ============================ Constants ============================ */
+  const GAME_VERSION = 'v4';   // <- à incrémenter à chaque nouvelle version publiée
   const COLS = 7, ROWS = 12, NC = 5;
   const RAINBOW = 9;   // valeur spéciale dans la grille : bestiole arc-en-ciel
   const FLASH_MS = 150, DROP_MS = 190, GAP_MS = 70;
@@ -1774,6 +1779,8 @@
   ['pointerdown','touchend','keydown'].forEach(ev=>window.addEventListener(ev, unlockAudio, {passive:true}));
 
   /* ============================ Boot ============================ */
+  { const vt=document.getElementById('verTag'); if(vt) vt.textContent=GAME_VERSION;
+    const vs=document.getElementById('verStart'); if(vs) vs.textContent='Bloop Drop '+GAME_VERSION; }
   load(); loadQuests(); refreshMute(); refreshMusic(); refreshDiffUI(); resetGame(); sizeGame(); updateHUD(); renderQuests();
   requestAnimationFrame(frame);
 })();
