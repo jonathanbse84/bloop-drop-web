@@ -305,7 +305,7 @@
 "use strict";
 (function(){
   /* ============================ Constants ============================ */
-  const GAME_VERSION = 'v9';   // <- à incrémenter à chaque nouvelle version publiée
+  const GAME_VERSION = 'v10';   // <- à incrémenter à chaque nouvelle version publiée
   const COLS = 7, ROWS = 12, NC = 5;
   const RAINBOW = 9;   // valeur spéciale dans la grille : bestiole arc-en-ciel
   const FLASH_MS = 150, DROP_MS = 190, GAP_MS = 70;
@@ -1270,27 +1270,41 @@
     }
     return best;
   }
+  // Hauteur libre au-dessus d'une colonne : au-dessus de la pile ET des autres bestioles en chute.
+  function freeTopFor(f, col){
+    let top = ROWS-1-stackCol(col);                 // dernière ligne libre au-dessus de la pile
+    for(const o of S.fallers){
+      if(o===f || o.col!==col) continue;
+      top = Math.min(top, o.y - 1.05);              // rester au-dessus d'une bestiole déjà en chute
+    }
+    return top;
+  }
   function canMoveFaller(f,tcol){
     if(tcol<0||tcol>=COLS) return false;
-    if(stackCol(tcol)>=ROWS) return false;                       // colonne totalement pleine
-    for(const o of S.fallers){ if(o!==f && o.col===tcol) return false; }  // déjà occupée par une autre en chute
-    return true;
+    if(stackCol(tcol)>=ROWS) return false;          // colonne pleine : vrai mur
+    return freeTopFor(f,tcol) > -1;                 // il reste de la place en haut
   }
-  // Glissement libre sur toute la largeur : la bestiole passe PAR-DESSUS les piles.
-  // Si la colonne visée est plus haute, on la soulève juste ce qu'il faut.
+  // Glissement libre : on calcule la hauteur de survol nécessaire sur TOUT le trajet,
+  // puis on soulève une seule fois. Évite de se bloquer sur une bestiole rencontrée en route.
   function moveFallerToward(f,tcol){
+    tcol=Math.max(0,Math.min(COLS-1,tcol));
     if(tcol===f.col) return false;
     const dir = tcol>f.col ? 1 : -1;
-    let moved=false;
-    while(f.col!==tcol){
-      const nxt=f.col+dir;
-      if(!canMoveFaller(f,nxt)) break;                           // pleine ou occupée : on s'arrête là
-      const top=ROWS-1-stackCol(nxt);                            // dernière ligne libre de la colonne visée
-      if(f.y>top) f.y=Math.max(-1, top-0.02);                    // on la soulève pour survoler la pile
-      f.col=nxt; moved=true;
+    let last=f.col, need=f.y;
+    for(let c=f.col+dir; ; c+=dir){
+      if(stackCol(c)>=ROWS) break;                  // colonne pleine : on s'arrête avant
+      const top=freeTopFor(f,c);
+      if(top<=-1) break;                            // pas de place pour survoler
+      need=Math.min(need, top);                     // il faudra monter au moins jusque-là
+      last=c;
+      if(c===tcol) break;
     }
-    return moved;
+    if(last===f.col) return false;
+    if(need<f.y) f.y=Math.max(-1, need-0.02);       // soulèvement unique, suffisant pour tout le trajet
+    f.col=last;
+    return true;
   }
+
   gameCanvas.addEventListener('pointerdown', e=>{
     if(S.state!=='playing') return; ensureAudio();
     downOn=true; moved=false; downX=e.clientX; downY=e.clientY;
