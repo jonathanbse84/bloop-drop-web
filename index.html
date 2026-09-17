@@ -305,7 +305,7 @@
 "use strict";
 (function(){
   /* ============================ Constants ============================ */
-  const GAME_VERSION = 'v7';   // <- à incrémenter à chaque nouvelle version publiée
+  const GAME_VERSION = 'v8';   // <- à incrémenter à chaque nouvelle version publiée
   const COLS = 7, ROWS = 12, NC = 5;
   const RAINBOW = 9;   // valeur spéciale dans la grille : bestiole arc-en-ciel
   const FLASH_MS = 150, DROP_MS = 190, GAP_MS = 70;
@@ -515,7 +515,7 @@
     gameCanvas.style.width=boardW+'px'; gameCanvas.style.height=boardH+'px';
     gameCanvas.width=Math.round(boardW*dpr); gameCanvas.height=Math.round(boardH*dpr);
     gtx.setTransform(dpr,0,0,dpr,0,0);
-    S._bgGrad=null; S._guideGrad=null;   // caches invalidés au redimensionnement
+    S._bgGrad=null; S._guideGrad=null; clearSprites();   // caches invalidés au redimensionnement
     initStreaks();
   }
   let rcell=24, rW=0, rH=0;
@@ -714,7 +714,27 @@
     ctx.closePath(); ctx.fill(); ctx.restore();
     if(opt && opt.overlay>0){ bodyPath(ctx,bx,by,bs,shape); ctx.fillStyle='rgba(255,255,255,'+opt.overlay+')'; ctx.fill(); }
   }
-  function drawBlock(ctx,x,y,s,ci,opt){
+  /* ---- Cache de rendu : chaque bestiole est dessinée UNE fois puis recopiée ----
+     Sans cache, on refait ~70 opérations de dessin par bestiole et par image. */
+  const SPR={};                       // clé "couleur|espèce|forme|taille|dpr" -> canvas
+  function spriteFor(ci, sp, shape, size){
+    const key=ci+'|'+sp+'|'+shape+'|'+size+'|'+dpr;
+    let cv=SPR[key];
+    if(cv) return cv;
+    cv=document.createElement('canvas');
+    const pad=Math.ceil(size*0.18);                 // marge pour oreilles / cornes qui dépassent
+    cv.width=Math.ceil((size+pad*2)*dpr); cv.height=Math.ceil((size+pad*2)*dpr);
+    const c=cv.getContext('2d');
+    c.setTransform(dpr,0,0,dpr,0,0);
+    drawBlockRaw(c, pad, pad, size, ci, {sp:sp, shape:shape});
+    cv._pad=pad;
+    if(Object.keys(SPR).length>120) clearSprites();
+    SPR[key]=cv;
+    return cv;
+  }
+  function clearSprites(){ for(const k in SPR) delete SPR[k]; }
+
+  function drawBlockRaw(ctx,x,y,s,ci,opt){
     opt=opt||{};
     const sp=opt.sp||0, shape=opt.shape||0, scale=opt.scale||1;
     const m=s*0.06;
@@ -732,6 +752,17 @@
     drawFace(ctx,bx,by,bs,sp,col,shape);
     // white overlay (live flash)
     if(opt.overlay>0){ bodyPath(ctx,bx,by,bs,shape); ctx.fillStyle='rgba(255,255,255,'+opt.overlay+')'; ctx.fill(); }
+  }
+
+  function drawBlock(ctx,x,y,s,ci,opt){
+    opt=opt||{};
+    // Cache réservé au plateau de jeu ; replay et GIF dessinent en direct (autre résolution).
+    if(ctx!==gtx || ci===RAINBOW || opt.overlay>0 || (opt.scale && opt.scale!==1) || opt.flat){
+      return drawBlockRaw(ctx,x,y,s,ci,opt);
+    }
+    const cv=spriteFor(ci, opt.sp||0, opt.shape||0, s);
+    const pad=cv._pad;
+    ctx.drawImage(cv, x-pad, y-pad, cv.width/dpr, cv.height/dpr);
   }
   function drawWhiteBlock(ctx,x,y,s,scale,shape){
     const m=s*0.06; const full=s-2*m; let bs=full*scale;
