@@ -305,7 +305,7 @@
 "use strict";
 (function(){
   /* ============================ Constants ============================ */
-  const GAME_VERSION = 'v8';   // <- à incrémenter à chaque nouvelle version publiée
+  const GAME_VERSION = 'v9';   // <- à incrémenter à chaque nouvelle version publiée
   const COLS = 7, ROWS = 12, NC = 5;
   const RAINBOW = 9;   // valeur spéciale dans la grille : bestiole arc-en-ciel
   const FLASH_MS = 150, DROP_MS = 190, GAP_MS = 70;
@@ -1272,18 +1272,21 @@
   }
   function canMoveFaller(f,tcol){
     if(tcol<0||tcol>=COLS) return false;
-    if(f.y > (ROWS-1-stackCol(tcol))+0.05) return false;         // no room above that column's stack
-    for(const o of S.fallers){ if(o!==f && o.col===tcol) return false; }
+    if(stackCol(tcol)>=ROWS) return false;                       // colonne totalement pleine
+    for(const o of S.fallers){ if(o!==f && o.col===tcol) return false; }  // déjà occupée par une autre en chute
     return true;
   }
-  // Avance colonne par colonne vers la cible : on va aussi loin que possible.
+  // Glissement libre sur toute la largeur : la bestiole passe PAR-DESSUS les piles.
+  // Si la colonne visée est plus haute, on la soulève juste ce qu'il faut.
   function moveFallerToward(f,tcol){
     if(tcol===f.col) return false;
     const dir = tcol>f.col ? 1 : -1;
     let moved=false;
     while(f.col!==tcol){
       const nxt=f.col+dir;
-      if(!canMoveFaller(f,nxt)) break;
+      if(!canMoveFaller(f,nxt)) break;                           // pleine ou occupée : on s'arrête là
+      const top=ROWS-1-stackCol(nxt);                            // dernière ligne libre de la colonne visée
+      if(f.y>top) f.y=Math.max(-1, top-0.02);                    // on la soulève pour survoler la pile
       f.col=nxt; moved=true;
     }
     return moved;
