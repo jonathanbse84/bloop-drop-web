@@ -411,7 +411,7 @@
 "use strict";
 (function(){
   /* ============================ Constants ============================ */
-  const GAME_VERSION = 'v28';   // <- à incrémenter à chaque nouvelle version publiée
+  const GAME_VERSION = 'v29';   // <- à incrémenter à chaque nouvelle version publiée
   const COLS = 7, ROWS = 12, NC = 5;
   const RAINBOW = 9;   // valeur spéciale dans la grille : bestiole arc-en-ciel
   // Blocs spéciaux non-matchables (valeurs réservées dans la grille)
@@ -1330,6 +1330,7 @@
     afterGameProgress();   // Phase 7 : XP + niveau de compte + streak + succès
     renderQuests();
     S.chosen = S.bestCascadeGame || S.allTime || null;
+    S.chosenIsRecord = (!S.bestCascadeGame && !!S.allTime);   // vient d'une partie précédente ?
     S.replayT=0;
     updateFooter();
     showGameOver();
@@ -1753,6 +1754,7 @@
       sizeReplay(); S.replayT=0;
       meta.innerHTML=(SPECIES[S.chosen.species||0])+((S.chosen.shape||0)>0?(' · '+SHAPE_NAMES[S.chosen.shape]):'')+' · Chaîne <span class="x">×'+S.chosen.chain+'</span> · +'+fmt(S.chosen.total)+' pts';
       $('.replayWrap').style.display='flex'; $('.cascadeLabel').style.display='block'; meta.style.display='block';
+      $('.cascadeLabel').textContent = S.chosenIsRecord ? 'Ton record de cascade' : 'Ta plus belle cascade';
       saveBtn.style.display='block'; saveBtn.disabled=true; saveBtn.textContent='Préparation du partage…';
       setTimeout(()=>{ generateGif(); }, 60);
     } else {
