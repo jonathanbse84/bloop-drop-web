@@ -411,7 +411,7 @@
 "use strict";
 (function(){
   /* ============================ Constants ============================ */
-  const GAME_VERSION = 'v31';   // <- à incrémenter à chaque nouvelle version publiée
+  const GAME_VERSION = 'v33';   // <- à incrémenter à chaque nouvelle version publiée
   const COLS = 7, ROWS = 12, NC = 5;
   const RAINBOW = 9;   // valeur spéciale dans la grille : bestiole arc-en-ciel
   // Blocs spéciaux non-matchables (valeurs réservées dans la grille)
@@ -471,6 +471,7 @@
     streaks:[],
     shake:0,
     choke:0,
+    colorBag:null, lastColor:null,
     dangerT:0,
     grab:null,
     grabOff:0,
@@ -1301,7 +1302,7 @@
   /* ============================ Game flow ============================ */
   function resetGame(){
     S.grid=newGrid(); S.fallers=[]; S.score=0; S.elapsed=0; S.spawnAcc=0;
-    S.anim=null; S.particles=[]; S.popups=[]; S.shake=0; S.choke=0; S.dangerT=0; S.spawnCount=0; S.bestCascadeGame=null;
+    S.anim=null; S.particles=[]; S.popups=[]; S.shake=0; S.choke=0; S.dangerT=0; S.spawnCount=0; S.colorBag=null; S.lastColor=null; S.bestCascadeGame=null;
     S.level=1; S.species=0; S.shape=0; S.musicTrack=0; S.recordFired=false;
     S.rainbowDue=false; S.rainbowUsed=0; S.popped=0;
     S.gifBlob=null; if(S.gifUrl){ URL.revokeObjectURL(S.gifUrl); S.gifUrl=null; }
@@ -1342,7 +1343,7 @@
   // l'accélération est douce et plafonnée, donc Facile ne rattrape jamais Intermédiaire.
   const DIFFS = {
     facile:  { name:'Facile',        fall0:2.6, fallK:0.010, fallMax:4.0,  spawn0:1100, spawnK:1.6, spawnMin:820 },
-    moyen:   { name:'Intermédiaire', fall0:4.5, fallK:0.014, fallMax:7.8,  spawn0:860,  spawnK:2.9, spawnMin:470 },
+    moyen:   { name:'Intermédiaire', fall0:4.9, fallK:0.016, fallMax:8.3,  spawn0:810,  spawnK:3.1, spawnMin:430 },
     expert:  { name:'Expert',        fall0:7.0, fallK:0.030, fallMax:14.0, spawn0:600,  spawnK:4.2, spawnMin:240 },
   };
   // Ligne de danger : perte si `cols` colonnes dépassent `height` pendant `grace` ms. Facile : pas de ligne.
@@ -1357,6 +1358,17 @@
   function stoneEvery(){ if(S.diff==='expert') return 9; if(S.diff==='moyen') return 12; return 0; }
   // Fréquence d'apparition d'un bloc de glace : Expert uniquement.
   function iceEvery(){ return S.diff==='expert' ? 14 : 0; }
+  // Couleur suivante via un "sac" mélangé : chaque couleur revient à tour de rôle,
+  // jamais deux fois la même d'affilée -> distribution équilibrée, pas de longues séries.
+  function nextColor(){
+    if(!S.colorBag || !S.colorBag.length){
+      const b=[]; for(let i=0;i<NC;i++) b.push(i);
+      for(let i=b.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; const t=b[i]; b[i]=b[j]; b[j]=t; }
+      if(S.lastColor!=null && b[0]===S.lastColor && b.length>1){ const t=b[0]; b[0]=b[1]; b[1]=t; }
+      S.colorBag=b;
+    }
+    const c=S.colorBag.shift(); S.lastColor=c; return c;
+  }
   const spawnInterval = ms => { const s=ms/1000, D=DIFFS[S.diff]||DIFFS.moyen; return Math.max(D.spawnMin, D.spawn0 - s*D.spawnK); };
   const fallSpeed = ms => { const s=ms/1000, D=DIFFS[S.diff]||DIFFS.moyen; return Math.min(D.fallMax, D.fall0 + s*D.fallK); }; // rows / sec
 
@@ -1373,7 +1385,7 @@
     if(!cands.length) return;
     let rnd=Math.random()*total, col=cands[cands.length-1];
     for(let i=0;i<cands.length;i++){ rnd-=weights[i]; if(rnd<=0){ col=cands[i]; break; } }
-    let ci=(Math.random()*NC)|0;
+    let ci=nextColor();
     if(S.rainbowDue){ ci=RAINBOW; S.rainbowDue=false; }
     else { S.spawnCount=(S.spawnCount||0)+1; const se=stoneEvery(), ie=iceEvery();
       if(se && S.spawnCount%se===0) ci=STONE;
@@ -1502,6 +1514,7 @@
   // Glissement : on GARDE la hauteur actuelle si c'est possible.
   // On ne soulève que si la pile de la colonne bloque, ou si une bestiole est pile à la même hauteur.
   function moveFallerToward(f,tcol){
+    if(isStone(f.ci)||isIce(f.ci)) return false;   // pierre/glace : jamais de glissement latéral
     tcol=Math.max(0,Math.min(COLS-1,tcol));
     if(tcol===f.col) return false;
     const dir = tcol>f.col ? 1 : -1;
