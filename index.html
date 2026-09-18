@@ -411,7 +411,7 @@
 "use strict";
 (function(){
   /* ============================ Constants ============================ */
-  const GAME_VERSION = 'v21';   // <- à incrémenter à chaque nouvelle version publiée
+  const GAME_VERSION = 'v22';   // <- à incrémenter à chaque nouvelle version publiée
   const COLS = 7, ROWS = 12, NC = 5;
   const RAINBOW = 9;   // valeur spéciale dans la grille : bestiole arc-en-ciel
   const FLASH_MS = 150, DROP_MS = 190, GAP_MS = 70;
@@ -569,17 +569,28 @@
       for(let r=0;r<ROWS;r++) g[r][c] = (r>=off) ? vals[r-off] : -1;
     }
   }
-  // Comme applyGravity mais renvoie l'ensemble des cellules (r*COLS+c) qui ont changé de ligne (la "traîne")
-  function applyGravityTracked(g){
-    const moved=new Set();
-    for(let c=0;c<COLS;c++){
-      const vals=[], rows=[];
-      for(let r=0;r<ROWS;r++) if(g[r][c]!==-1){ vals.push(g[r][c]); rows.push(r); }
-      const off=ROWS-vals.length;
-      for(let r=0;r<ROWS;r++) g[r][c] = (r>=off) ? vals[r-off] : -1;
-      for(let i=0;i<vals.length;i++){ const nr=off+i; if(nr!==rows[i]) moved.add(nr*COLS+c); }
+  // Étiquette chaque cellule non vide par son composant (même couleur, connexe) AVANT la chute
+  function labelGridComponents(g){
+    const lab=Array.from({length:ROWS},()=>Array(COLS).fill(-1));
+    const seen=new Uint8Array(ROWS*COLS); let id=0;
+    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+      if(g[r][c]===-1 || seen[r*COLS+c]) continue;
+      const color=g[r][c], st=[[r,c]]; seen[r*COLS+c]=1; const cur=id++;
+      while(st.length){ const [cr,cc]=st.pop(); lab[cr][cc]=cur;
+        for(const [nr,nc] of [[cr-1,cc],[cr+1,cc],[cr,cc-1],[cr,cc+1]]){
+          if(nr<0||nr>=ROWS||nc<0||nc>=COLS) continue; const k=nr*COLS+nc;
+          if(seen[k]||g[nr][nc]!==color) continue; seen[k]=1; st.push([nr,nc]); } }
     }
-    return moved;
+    return lab;
+  }
+  // Gravité simultanée de la grille et de sa grille d'étiquettes
+  function applyGravityWithLabels(g, lab){
+    for(let c=0;c<COLS;c++){
+      const vals=[], labs=[];
+      for(let r=0;r<ROWS;r++) if(g[r][c]!==-1){ vals.push(g[r][c]); labs.push(lab[r][c]); }
+      const off=ROWS-vals.length;
+      for(let r=0;r<ROWS;r++){ g[r][c]=(r>=off)?vals[r-off]:-1; lab[r][c]=(r>=off)?labs[r-off]:-1; }
+    }
   }
 
   /* Compute the whole cascade produced by tapping (r0,c0). Pure over a clone. */
@@ -611,9 +622,11 @@
       total+=pts;
       steps.push({before, clear, points:pts, cells, centers:clearCells.slice()});
       for(const [r,c] of clearCells) g[r][c]=-1;
-      const moved=applyGravityTracked(g);
+      const lab=labelGridComponents(g);           // composants AVANT la chute
+      applyGravityWithLabels(g, lab);
       const groups=allGroups(g);
-      const wake=groups.filter(grp=>grp.some(([r,c])=>moved.has(r*COLS+c)));  // A : n'enchaîne que ce que la chute a formé
+      // n'enchaîne que les alignements VRAIMENT nouveaux : formés par la fusion de >=2 composants distincts
+      const wake=groups.filter(grp=>{ const s=new Set(); for(const [r,c] of grp) s.add(lab[r][c]); return s.size>=2; });
       if(wake.length===0) break;
       clearCells=[]; for(const grp of wake) for(const cell of grp) clearCells.push(cell);
     }
@@ -1268,9 +1281,9 @@
   // Chaque difficulté reste dans SON couloir de vitesse du début à la fin de la partie :
   // l'accélération est douce et plafonnée, donc Facile ne rattrape jamais Intermédiaire.
   const DIFFS = {
-    facile:  { name:'Facile',        fall0:2.4, fallK:0.008, fallMax:3.6,  spawn0:1250, spawnK:1.2, spawnMin:1000 },
-    moyen:   { name:'Intermédiaire', fall0:4.2, fallK:0.011, fallMax:5.8,  spawn0:950,  spawnK:2.2, spawnMin:700  },
-    expert:  { name:'Expert',        fall0:6.2, fallK:0.022, fallMax:9.5,  spawn0:760,  spawnK:3.0, spawnMin:480  },
+    facile:  { name:'Facile',        fall0:2.6, fallK:0.010, fallMax:4.0,  spawn0:1100, spawnK:1.6, spawnMin:820 },
+    moyen:   { name:'Intermédiaire', fall0:4.8, fallK:0.014, fallMax:6.6,  spawn0:800,  spawnK:2.8, spawnMin:560 },
+    expert:  { name:'Expert',        fall0:7.0, fallK:0.026, fallMax:11.0, spawn0:600,  spawnK:3.6, spawnMin:360 },
   };
   const spawnInterval = ms => { const s=ms/1000, D=DIFFS[S.diff]||DIFFS.moyen; return Math.max(D.spawnMin, D.spawn0 - s*D.spawnK); };
   const fallSpeed = ms => { const s=ms/1000, D=DIFFS[S.diff]||DIFFS.moyen; return Math.min(D.fallMax, D.fall0 + s*D.fallK); }; // rows / sec
