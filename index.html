@@ -98,6 +98,54 @@
   .brand{ display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:6px; }
   .brand .mark{ width:38px; height:38px; }
   .verstart{ font-size:11px; font-weight:600; color:var(--muted); letter-spacing:.4px; margin:-2px 0 12px; opacity:.8; }
+  /* Phase 3 — vies */
+  .lives{ display:flex; align-items:center; justify-content:center; gap:6px; margin:2px 0 12px; flex-wrap:wrap; }
+  .lives .hearts{ font-size:20px; letter-spacing:2px; line-height:1; }
+  .lives .heart{ color:#ff5d73; } .lives .heart.empty{ color:var(--line); }
+  .lives .lifetimer{ font-size:12px; font-weight:600; color:var(--muted); }
+  .nolives-hearts{ font-size:30px; letter-spacing:4px; margin:6px 0 4px; }
+  .nolives-hearts .heart{ color:#ff5d73; } .nolives-hearts .heart.empty{ color:var(--line); }
+  #livesOverlay{ z-index:60; } #adOverlay{ z-index:70; }
+  /* Phase 5 — ligues & saison */
+  .league{ display:flex; justify-content:center; margin:2px 0 10px; }
+  .league:empty{ display:none; }
+  .league .chip{ font-size:13px; font-weight:700; padding:5px 12px; border-radius:999px; border:1px solid var(--line); display:inline-flex; align-items:center; gap:6px; }
+  .league.big .chip{ font-size:15px; padding:7px 16px; }
+  .chip.Bronze{ color:#e0955a; border-color:#a86a3a; background:rgba(205,127,50,.12); }
+  .chip.Argent{ color:#cfd6e0; border-color:#8b93a3; background:rgba(192,192,192,.12); }
+  .chip.Or{ color:#ffce5a; border-color:#c9a133; background:rgba(255,194,71,.14); }
+  .chip.Platine{ color:#7fe6f0; border-color:#3aa7b8; background:rgba(127,211,224,.14); }
+  .seasoncd{ text-align:center; font-size:13px; font-weight:600; color:var(--muted); margin:-4px 0 12px; }
+  .podium{ display:flex; justify-content:center; align-items:flex-end; gap:10px; margin:6px 0 14px; }
+  .podium:empty{ display:none; }
+  .podium .col{ display:flex; flex-direction:column; align-items:center; gap:4px; width:90px; }
+  .podium .medal{ font-size:22px; }
+  .podium .pname{ font-size:12px; font-weight:700; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:90px; }
+  .podium .pscore{ font-size:12px; color:var(--muted); }
+  .podium .bar{ width:100%; border-radius:10px 10px 0 0; background:linear-gradient(180deg,var(--accent),#2ec6b8); }
+  .podium .p1 .bar{ height:64px; } .podium .p2 .bar{ height:46px; } .podium .p3 .bar{ height:32px; }
+  #seasonOverlay{ z-index:50; }
+  /* Phase 6 — défi hebdo */
+  .wch{ text-align:left; margin:2px 0 12px; padding:11px 13px; border-radius:12px; border:1px solid var(--line); background:rgba(53,224,208,.06); }
+  .wch:empty{ display:none; }
+  .wch-head{ font-size:11px; font-weight:700; letter-spacing:.3px; color:var(--accent); text-transform:uppercase; margin-bottom:3px; }
+  .wch-line{ font-size:14px; font-weight:600; }
+  .wch-prog{ font-size:13px; color:var(--muted); margin-top:2px; font-variant-numeric:tabular-nums; }
+  /* Phase 7 — compte & profil */
+  .accountbar{ margin:2px 0 12px; } .accountbar:empty{ display:none; }
+  .acc-top{ display:flex; justify-content:space-between; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:4px; }
+  .acc-track{ height:8px; border-radius:999px; background:var(--line); overflow:hidden; }
+  .acc-fill{ height:100%; background:linear-gradient(90deg,var(--accent),#2ec6b8); border-radius:999px; transition:width .4s; }
+  .prof-head{ text-align:center; margin:2px 0 12px; }
+  .prof-lvl{ font-size:18px; font-weight:800; } .prof-sub{ font-size:13px; color:var(--muted); margin-top:2px; }
+  .achlist,.collist{ list-style:none; margin:0 0 12px; padding:0; text-align:left; }
+  .achlist .ach{ display:flex; align-items:center; gap:10px; padding:9px 10px; border-bottom:1px solid rgba(255,255,255,.05); }
+  .achlist .ach.off{ opacity:.5; }
+  .ach-ic{ font-size:18px; } .ach-tx{ display:flex; flex-direction:column; }
+  .ach-tx b{ font-size:14px; } .ach-tx small{ font-size:12px; color:var(--muted); }
+  .collist .col-row{ display:flex; justify-content:space-between; padding:9px 10px; border-bottom:1px solid rgba(255,255,255,.05); font-size:14px; }
+  .prof-empty{ font-size:13px; color:var(--muted); padding:6px 2px; }
+  #profileOverlay{ z-index:50; }
   h1{ font-size:32px; font-weight:700; margin:2px 0 4px; letter-spacing:.4px; }
   h2{ font-size:26px; font-weight:700; margin:0 0 14px; }
   .lede{ color:var(--muted); font-size:15px; font-weight:400; line-height:1.5; margin:0 auto 20px; max-width:32ch; }
@@ -172,6 +220,7 @@
   .board li.pin{ border-top:2px solid rgba(255,255,255,.14); }
 </style>
   <script src="supabase.js"></script>
+  <script src="config.js"></script>
 </head>
 <body>
 <div id="splash" aria-hidden="true">
@@ -222,6 +271,9 @@
       <h1>Bloop&nbsp;Drop</h1>
     </div>
     <div class="verstart" id="verStart"></div>
+    <div class="lives" id="livesBar"></div>
+    <div class="league" id="leagueBadge"></div>
+    <div class="accountbar" id="accountBar"></div>
     <p class="lede">Une pluie de petites bestioles ne s'arrête jamais. Vide la grille, enchaîne les cascades et passe les niveaux — à chacun, une nouvelle bande débarque.</p>
     <div class="rules">
       <div class="rule"><span class="n">1</span><span>Touche une bestiole entourée d'une identique pour l'exploser.</span></div>
@@ -231,6 +283,7 @@
     </div>
     <div class="qtitle">Défis du jour</div>
     <ol class="quests" id="questList"></ol>
+    <div class="wch" id="weeklyChallenge"></div>
     <div class="difftitle">Difficulté</div>
     <div class="diffs" id="diffPick">
       <button class="diffbtn" data-diff="facile">Facile<small>tout en douceur</small></button>
@@ -240,11 +293,62 @@
     <div class="btnrow">
       <button class="btn primary" id="playBtn">Jouer</button>
       <button class="btn ghost" id="startBoardBtn">Classement mondial</button>
+      <button class="btn ghost" id="seasonBtn">Saison &amp; ligues</button>
+      <button class="btn ghost" id="profileBtn">Mon profil</button>
     </div>
   </div>
 </div>
 
-<!-- Pause -->
+<!-- Phase 3 — plus de vies -->
+<div class="overlay" id="livesOverlay">
+  <div class="card">
+    <h2>Plus de vies</h2>
+    <div class="nolives-hearts" id="noLivesHearts"></div>
+    <p class="lede" id="livesWait">Reviens un peu plus tard, ou regarde une courte pub pour continuer tout de suite.</p>
+    <div class="btnrow">
+      <button class="btn primary" id="adLifeBtn">Regarder une pub (+1 vie)</button>
+      <button class="btn ghost" id="livesCloseBtn">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Phase 3 — placeholder pub (remplacé par AdMob en Phase 4) -->
+<div class="overlay" id="adOverlay">
+  <div class="card">
+    <h2 id="adTitle">Pub récompensée</h2>
+    <p class="lede" id="adBody">Mode test — aucune vraie pub tant que les clés AdMob ne sont pas renseignées.</p>
+    <div class="btnrow">
+      <button class="btn primary" id="adDoneBtn">Obtenir ma récompense</button>
+    </div>
+  </div>
+</div>
+<!-- Phase 5 — Saison & ligues -->
+<div class="overlay" id="seasonOverlay">
+  <div class="card">
+    <h2>Saison &amp; ligues</h2>
+    <div class="league big" id="seasonLeague"></div>
+    <div class="seasoncd" id="seasonCountdown"></div>
+    <div class="podium" id="podium"></div>
+    <div class="board-title">Classement de la saison</div>
+    <ol class="board" id="seasonBoard"></ol>
+    <p class="board-note" id="seasonNote"></p>
+    <div class="btnrow"><button class="btn ghost" id="seasonCloseBtn">Fermer</button></div>
+  </div>
+</div>
+
+<!-- Phase 7 — Profil -->
+<div class="overlay" id="profileOverlay">
+  <div class="card">
+    <h2>Mon profil</h2>
+    <div class="prof-head" id="profHead"></div>
+    <div class="board-title">Succès</div>
+    <ul class="achlist" id="profAch"></ul>
+    <div class="board-title">Collections</div>
+    <ul class="collist" id="profCol"></ul>
+    <div class="btnrow"><button class="btn ghost" id="profCloseBtn">Fermer</button></div>
+  </div>
+</div>
+
 <div class="overlay" id="pauseOverlay">
   <div class="card">
     <h2>En pause</h2>
@@ -261,6 +365,7 @@
 <div class="overlay" id="overOverlay">
   <div class="card">
     <h2>Partie terminée</h2>
+    <div class="lives" id="livesBarOver"></div>
     <div class="newbest" id="newBest">Nouveau record&nbsp;!</div>
     <div class="scores">
       <div class="box"><div class="k">score</div><div class="v" id="finalScore">0</div></div>
@@ -273,6 +378,7 @@
     <p class="saveHint" id="saveHint">Appui long sur l'image pour l'enregistrer ou la partager.</p>
     <div class="qtitle">Défis du jour</div>
     <ol class="quests" id="questListOver"></ol>
+    <div class="wch" id="weeklyChallengeOver"></div>
     <div class="board-title">Classement mondial</div>
     <div class="lbtabs"><button class="lbtab" data-diffscope="facile">Facile</button><button class="lbtab active" data-diffscope="moyen">Interm.</button><button class="lbtab" data-diffscope="expert">Expert</button></div>
     <ol class="board" id="boardOver"></ol>
@@ -305,7 +411,7 @@
 "use strict";
 (function(){
   /* ============================ Constants ============================ */
-  const GAME_VERSION = 'v11';   // <- à incrémenter à chaque nouvelle version publiée
+  const GAME_VERSION = 'v20';   // <- à incrémenter à chaque nouvelle version publiée
   const COLS = 7, ROWS = 12, NC = 5;
   const RAINBOW = 9;   // valeur spéciale dans la grille : bestiole arc-en-ciel
   const FLASH_MS = 150, DROP_MS = 190, GAP_MS = 70;
@@ -1116,7 +1222,8 @@
     S.gifBlob=null; if(S.gifUrl){ URL.revokeObjectURL(S.gifUrl); S.gifUrl=null; }
     updateHUD(); updateFooter();
   }
-  function startGame(){ ensureAudio(); loadQuests(); renderQuests(); resetGame(); S.startBest=S.best; hide(startOv); hide(overOv); hide(pauseOv); hide(boardOv); S.state='playing'; updateFooter(); startMusic(); initDB(); }
+  function _doStartGame(){ ensureAudio(); loadQuests(); renderQuests(); resetGame(); S.startBest=S.best; S.gameT0=Date.now(); hide(startOv); hide(overOv); hide(pauseOv); hide(boardOv); S.state='playing'; updateFooter(); startMusic(); initDB(); track('game_start', { diff:S.diff }); }
+  function startGame(){ if(livesCount()<=0){ openNoLives(); return; } spendLife(); _doStartGame(); }
   function pauseGame(){ if(S.state!=='playing'&&S.state!=='resolving') return; S.state='paused'; stopMusic(); show(pauseOv); }
   function resumeGame(){ if(S.state!=='paused') return; hide(pauseOv); S.state = S.anim ? 'resolving' : 'playing'; startMusic(); }
   function gameOver(){
@@ -1128,13 +1235,20 @@
     if(improved && !S.recordFired) applause();
     if(S.score>=S.best){ S.best=S.score; }
     saveBest();
+    const _dur = Math.max(0, Math.round((Date.now()-(S.gameT0||Date.now()))/1000));
+    if(improved){ syncBlopScore(S.score, S.level, _dur); }   // Phase 2 : sync record -> Supabase
+    track('game_over', { score:S.score, level:S.level, duration_s:_dur });
     questProgress('pop', S.popped, 'add');
     questProgress('games', 1, 'add');
+    wchProgress('pop', S.popped, 'add'); wchProgress('games', 1, 'add');
+    wchProgress('score_single', S.score, 'single'); wchProgress('level', S.level, 'single');
+    afterGameProgress();   // Phase 7 : XP + niveau de compte + streak + succès
     renderQuests();
     S.chosen = S.bestCascadeGame || S.allTime || null;
     S.replayT=0;
     updateFooter();
     showGameOver();
+    maybeShowInterstitial();   // Phase 4 : interstitiel après game over, 1/session max, skippable
   }
 
   // Niveaux de difficulté : "moyen" reprend la vitesse d'origine.
@@ -1185,10 +1299,10 @@
   function updateResolve(dt){
     const a=S.anim; a.t+=dt; const n=a.res.steps.length;
     let step=Math.floor(a.t/STEP_MS); if(step>n-1) step=n-1;
-    while(a.spawned<step){ a.spawned++; const st=a.res.steps[a.spawned]; addScore(st.points); spawnCascadeFX(st, a.spawned+1); }
+    while(a.spawned<step){ a.spawned++; const st=a.res.steps[a.spawned]; addScore(st.points); spawnCascadeFX(st, a.spawned+1); if(st && st.cells>=10){ wchProgress('combo_size',1,'add'); achCheck('combo_size',1); rareBlockDrop(0.2); } }
     if(a.t >= n*STEP_MS + 60){
       if(a.res.bonus){ addScore(a.res.bonus); }
-      if(a.res.chain>=3){ bigPopup('Combo ×'+a.res.chain); }
+      if(a.res.chain>=3){ bigPopup('Combo ×'+a.res.chain); track('combo_achieved', { chain:a.res.chain }); }
       questProgress('combo', a.res.chain, 'max');
       if(a.res.chain>=4 && !a.res.wasRainbow){ S.rainbowDue=true; toast('Bonus arc-en-ciel\u00a0! Il arrive\u2026'); }
       commitCascade(a.res);
@@ -1356,7 +1470,7 @@
     if(S.grid[row][col]===-1) return;
     if(S.grid[row][col]===RAINBOW){
       const res=computeCascade(S.grid,row,col,true);
-      if(res){ S.rainbowUsed++; questProgress('rainbow',1,'add'); buzz([30,50,30,50,50],'heavy'); bigPopup('Arc-en-ciel\u00a0!'); startResolve(res); }
+      if(res){ S.rainbowUsed++; questProgress('rainbow',1,'add'); wchProgress('rainbow',1,'add'); achCheck('rainbow',_ctrInc(K_TR)); rareBlockDrop(1); buzz([30,50,30,50,50],'heavy'); bigPopup('Arc-en-ciel\u00a0!'); startResolve(res); }
       return;
     }
     const grp=findGroup(S.grid,row,col);
@@ -1525,6 +1639,7 @@
   function showGameOver(){
     $('#finalScore').textContent=fmt(S.score);
     $('#finalBest').textContent=fmt(S.best);
+    renderLives();
     const nb=$('#newBest'); nb.classList.toggle('show', S.score>0 && S.score>=S.best && S.wasNewBest===false ? true : (S.score>0 && S.score===S.best));
     // simpler: mark new best if this score equals the stored best and > 0
     nb.classList.toggle('show', S.score>0 && S.score>=S.best);
@@ -1623,8 +1738,9 @@
 
   /* ============================ Online leaderboard (Supabase + anti-cheat) ============================ */
   // Backend Supabase — projet dédié "Bloop Drop". Clé anon publique par conception (protégée par RLS).
-  const SUPABASE_URL = 'https://rlgzadiyhjmfmztopfdu.supabase.co';
-  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJsZ3phZGl5aGptZm16dG9wZmR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1MDQ0MDYsImV4cCI6MjEwNTA4MDQwNn0.TWlRhqAkPLFmEIJu63dlTqPQqe2ExhY566fWSDldC2M';
+  // Lu depuis config.js (jamais de clé en dur). Vide si absent ou placeholder "XXXX" -> mode hors-ligne propre.
+  const SUPABASE_URL = (window.SUPABASE_URL && window.SUPABASE_URL.indexOf('XXXX')<0) ? window.SUPABASE_URL : '';
+  const SUPABASE_KEY = (window.SUPABASE_KEY && window.SUPABASE_KEY.indexOf('XXXX')<0) ? window.SUPABASE_KEY : '';
   // Shared with the Edge Function to sign score submissions (anti-cheat). Rotate if leaked.
   const SIGN_SECRET = '85c71f232a8ac09c219696e531c1bd4aa3ba51c373eeb20b';
   const FN_URL = SUPABASE_URL + '/functions/v1/submit-score';
@@ -1635,6 +1751,352 @@
   function cleanPseudo(s){ return (s||'').replace(/[\u0000-\u001f\u007f]/g,'').replace(/\s+/g,' ').trim().slice(0,16); }
   const playerId=getPid();
   let supa=null, dbTried=false, lbData=[], myRank=null, lbScope='moyen', lbChannel=null;
+
+  /* ============ PHASE 2 — Auth anonyme + profil blop_ (best-effort, jamais bloquant) ============ */
+  let blopUid=null, blopSeasonId=null, blopReady=false, blopProfile=null, blopSeason=null, blopChallenge=null;
+  let blopLevels=[], blopAchievements=[], achUnlocked={};
+  const _PADJ=['Vif','Malin','Rapide','Zen','Fou','Cosmic','Turbo','Doux','Fier','Fute','Solaire','Givre'];
+  const _PANI=['Panda','Renard','Hibou','Chat','Lapin','Ourson','Pingouin','Cochon','Licorne','Poussin','Monstre'];
+  function generatePseudo(){
+    const a=_PADJ[Math.floor(Math.random()*_PADJ.length)];
+    const n=_PANI[Math.floor(Math.random()*_PANI.length)];
+    const num=Math.floor(Math.random()*900)+100;
+    let p=n+'-'+a+'-'+num;              // ex. Panda-Vif-482
+    if(p.length>16) p=n+'-'+num;        // repli si trop long : ex. Pingouin-482 (<=12), jamais tronqué
+    return cleanPseudo(p);
+  }
+  function ensurePseudo(){
+    let p=getPseudo();
+    if(!p){ p=generatePseudo(); savePseudo(p); try{ const pin=$('#pseudoInput'); if(pin && !pin.value) pin.value=p; }catch(e){} }
+    return p;
+  }
+  async function blopAuth(){
+    if(!supa){ return false; }
+    try{
+      let session=null;
+      try{ const gs=await supa.auth.getSession(); session=gs&&gs.data?gs.data.session:null; }catch(e){}
+      if(!session){
+        const r=await supa.auth.signInAnonymously();
+        if(r.error){ const _m=String((r.error&&r.error.message)||''); if(/fetch|network|load failed|timeout/i.test(_m)) console.warn('[blop] auth: Supabase injoignable ('+_m+') — réseau/VPN, ou aperçu sandbox qui bloque les requêtes externes. Teste sur l\u2019URL https réelle.'); else console.warn('[blop] auth: connexion anonyme refusée ('+_m+') — active Anonymous sign-ins dans Supabase (Authentication → Providers).'); return false; }
+        session=r.data?r.data.session:null;
+      }
+      blopUid = (session&&session.user)?session.user.id:null;
+      if(!blopUid){ try{ const gu=await supa.auth.getUser(); blopUid=gu&&gu.data&&gu.data.user?gu.data.user.id:null; }catch(e){} }
+      if(!blopUid){ return false; }
+      try{ const s=await supa.from('blop_seasons').select('id,date_end,label').eq('is_active',true).limit(1).maybeSingle(); blopSeason=(s&&s.data)?s.data:null; blopSeasonId=blopSeason?blopSeason.id:null; }catch(e){}
+      const uname=ensurePseudo();
+      try{
+        const up=await supa.from('blop_profiles')
+          .upsert({ id:blopUid, username:uname, season_id:blopSeasonId }, { onConflict:'id' })
+          .select('id,username,lives,account_level,account_xp,current_league,play_streak').maybeSingle();
+        if(up && !up.error && up.data) blopProfile=up.data;
+      }catch(e){ console.warn('[blop] profil', e); }
+      adoptServerLivesIfFirstRun(blopProfile); syncLives(); renderLives(); renderLeagueBadge();
+      try{ const today=new Date().toISOString().slice(0,10);
+        const ch=await supa.from('blop_weekly_challenges').select('*').lte('week_start',today).gte('week_end',today).limit(1).maybeSingle();
+        blopChallenge=(ch&&ch.data)?ch.data:null; }catch(e){}
+      _wchState(); renderChallenge(); wchTryClaim();
+      try{ const lv=await supa.from('blop_account_levels').select('level,xp_required,reward_type,reward_id').order('level'); blopLevels=(lv&&lv.data)?lv.data:[]; }catch(e){}
+      try{ const ac=await supa.from('blop_achievements').select('code,name,description,condition_type,condition_value,reward'); blopAchievements=(ac&&ac.data)?ac.data:[]; }catch(e){}
+      try{ const ev=await supa.from('blop_events').select('event_data').eq('event_type','achievement_unlocked'); achUnlocked={}; (ev&&ev.data?ev.data:[]).forEach(r=>{ if(r.event_data&&r.event_data.code) achUnlocked[r.event_data.code]=true; }); }catch(e){}
+      renderAccountXP();
+      blopReady=true;
+      return true;
+    }catch(e){ console.warn('[blop] blopAuth', e); return false; }
+  }
+  // Sync du meilleur score vers Supabase à chaque record (le trigger met à jour blop_leaderboard)
+  async function syncBlopScore(score, level, dur){
+    if(!supa || !blopReady || !blopUid){ return; }
+    try{
+      await supa.from('blop_game_sessions').insert({
+        user_id: blopUid, score: score|0, level_reached: level|0,
+        lives_used: 1, duration_seconds: dur|0, season_id: blopSeasonId
+      });
+    }catch(e){ console.warn('[blop] syncScore', e); }
+  }
+  async function updateBlopUsername(pseudo){
+    if(!supa || !blopReady || !blopUid || !pseudo){ return; }
+    try{ await supa.from('blop_profiles').update({ username:pseudo }).eq('id', blopUid); }catch(e){}
+  }
+  /* ============ fin module Phase 2 ============ */
+
+  /* ============ PHASE 3 — Système de vies (offline-first, miroir blop_profiles) ============ */
+  const LIVES_MAX=5, REGEN_MS=30*60*1000;
+  const K_LIVES='cascadeTap.lives', K_LREGEN='cascadeTap.lregen';
+  let livesTicker=null;
+  function _loadLives(){
+    let n,t; try{ n=parseInt(localStorage.getItem(K_LIVES),10); }catch(e){} try{ t=parseInt(localStorage.getItem(K_LREGEN),10); }catch(e){}
+    if(isNaN(n)) n=LIVES_MAX; if(isNaN(t)) t=Date.now();
+    return { n:Math.max(0,Math.min(LIVES_MAX,n)), t };
+  }
+  function _saveLives(n,t){ try{ localStorage.setItem(K_LIVES,String(n)); localStorage.setItem(K_LREGEN,String(t)); }catch(e){} }
+  function _regen(){
+    let {n,t}=_loadLives(); const now=Date.now(); const n0=n,t0=t;
+    if(n<LIVES_MAX){ const g=Math.floor((now-t)/REGEN_MS); if(g>0){ n=Math.min(LIVES_MAX,n+g); t = n>=LIVES_MAX ? now : t+g*REGEN_MS; try{ track('life_regen',{ gained:g, lives:n }); }catch(e){} } }
+    if(n!==n0||t!==t0) _saveLives(n,t);
+    return {n,t};
+  }
+  function livesCount(){ return _regen().n; }
+  function msToNextLife(){ const {n,t}=_regen(); if(n>=LIVES_MAX) return 0; return Math.max(0, REGEN_MS-(Date.now()-t)); }
+  function spendLife(){ let {n,t}=_regen(); if(n<=0) return false; if(n>=LIVES_MAX) t=Date.now(); n-=1; _saveLives(n,t); syncLives(); renderLives(); return true; }
+  function addLife(k){ let {n,t}=_regen(); if(n>=LIVES_MAX) return; n=Math.min(LIVES_MAX,n+(k||1)); if(n>=LIVES_MAX) t=Date.now(); _saveLives(n,t); syncLives(); renderLives(); }
+  function _heartsHTML(n){ let s=''; for(let i=0;i<LIVES_MAX;i++) s+='<span class="heart'+(i<n?'':' empty')+'">'+(i<n?'\u2665':'\u2661')+'</span>'; return s; }
+  function _fmtMMSS(ms){ const s=Math.ceil(ms/1000), m=Math.floor(s/60), r=s%60; return m+':'+(r<10?'0':'')+r; }
+  function renderLives(){
+    const {n}=_regen();
+    let h='<span class="hearts">'+_heartsHTML(n)+'</span>';
+    if(n<LIVES_MAX) h+='<span class="lifetimer">+1 dans '+_fmtMMSS(msToNextLife())+'</span>';
+    ['#livesBar','#livesBarOver'].forEach(id=>{ const bar=$(id); if(bar) bar.innerHTML=h; });
+    const nh=$('#noLivesHearts'); if(nh) nh.innerHTML=_heartsHTML(n);
+    const lw=$('#livesWait'); if(lw) lw.textContent = n>0 ? 'Tu as de nouveau une vie \u2014 c\u2019est reparti\u00a0!' : ('Prochaine vie gratuite dans '+_fmtMMSS(msToNextLife())+'. Ou regarde une courte pub pour continuer tout de suite.');
+    const lo=$('#livesOverlay'); if(lo && lo.classList.contains('show') && n>0) hide(lo);
+  }
+  function startLivesTicker(){ if(livesTicker) return; livesTicker=setInterval(()=>{ if(S.state!=='playing') renderLives(); const so=$('#seasonOverlay'); if(so && so.classList.contains('show')){ const cd=$('#seasonCountdown'); if(cd) cd.textContent=_seasonEndsInText(); } }, 1000); }
+  function openNoLives(){ renderLives(); show($('#livesOverlay')); }
+  /* ============ PHASE 4 — AdMob (lu depuis config.js, repli mock) ============ */
+  const AD_INTER  = window.ADMOB_INTERSTITIAL_ID || '';
+  const AD_REWARD = window.ADMOB_REWARDED_ID || '';
+  function _adReal(id){ return !!id && String(id).indexOf('XXXX')<0; }
+  function _hasNativeAds(){ try{ return !!(window.BlopAds && typeof window.BlopAds.rewarded==='function'); }catch(e){ return false; } }
+  const adSession = { interstitialShown:false };   // max 1 interstitiel / session
+
+  // Placeholder générique (mode mock ou web). Bouton unique #adDoneBtn réutilisé.
+  function _showAdPlaceholder(opts){
+    const ov=$('#adOverlay'), title=$('#adTitle'), body=$('#adBody'), done=$('#adDoneBtn');
+    if(title) title.textContent=opts.title; if(body) body.textContent=opts.body; if(done) done.textContent=opts.btn;
+    show(ov);
+    const h=function(){ done.removeEventListener('click',h); hide(ov); try{ opts.onClose&&opts.onClose(); }catch(e){} };
+    done.addEventListener('click',h);
+  }
+
+  // Pub récompensée -> +1 vie (jamais pendant le gameplay : appelée depuis le panneau "plus de vies")
+  function rewardedAd(onReward){
+    const rw=()=>{ track('ad_watched', { type:'rewarded' }); try{ onReward&&onReward(); }catch(e){} };
+    if(_adReal(AD_REWARD) && _hasNativeAds()){ try{ window.BlopAds.rewarded(rw); return; }catch(e){ console.warn('[ads] pont rewarded KO, repli mock', e); } }
+    _showAdPlaceholder({
+      title:'Pub récompensée',
+      body:_adReal(AD_REWARD) ? 'Web = simulation ; la vraie pub AdMob s\u2019affiche dans l\u2019app native.' : 'Mode test \u2014 pub simulée (clés AdMob non renseignées dans config.js).',
+      btn:'Obtenir ma récompense (+1 vie)',
+      onClose:rw
+    });
+  }
+
+  // Interstitiel APRÈS game over : skippable, max 1/session, jamais pendant le jeu
+  function maybeShowInterstitial(){
+    if(adSession.interstitialShown) return;
+    if(S.state==='playing') return;                       // garde-fou : jamais pendant le gameplay
+    adSession.interstitialShown=true;
+    track('ad_watched', { type:'interstitial' });
+    if(_adReal(AD_INTER) && _hasNativeAds() && typeof window.BlopAds.interstitial==='function'){ try{ window.BlopAds.interstitial(); return; }catch(e){ console.warn('[ads] pont interstitiel KO, repli mock', e); } }
+    _showAdPlaceholder({
+      title:'Publicité',
+      body:_adReal(AD_INTER) ? 'Web = simulation ; l\u2019interstitiel AdMob s\u2019affiche dans l\u2019app native.' : 'Mode test \u2014 interstitiel simulé (clés AdMob non renseignées dans config.js).',
+      btn:'Passer \u25B6',
+      onClose:()=>{}
+    });
+  }
+  /* ============ fin module Phase 4 ============ */
+
+  /* ============ PHASE 5 — Ligues & saison (frontend) ============ */
+  const LEAGUES=['Bronze','Argent','Or','Platine'];
+  const LEAGUE_ICON={ Bronze:'\uD83E\uDD49', Argent:'\uD83E\uDD48', Or:'\uD83E\uDD47', Platine:'\uD83D\uDC8E' };
+  function _leagueChip(name){ const n=LEAGUES.indexOf(name)>=0?name:'Bronze'; return '<span class="chip '+n+'">'+(LEAGUE_ICON[n]||'')+' '+n+'</span>'; }
+  function renderLeagueBadge(){
+    const el=$('#leagueBadge'); if(!el) return;
+    const name=(blopProfile && blopProfile.current_league)?blopProfile.current_league:null;
+    el.innerHTML = name ? ('Ligue '+_leagueChip(name)) : '';
+  }
+  function _esc(s){ return String(s==null?'':s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
+  function _seasonEndsInText(){
+    if(!blopSeason || !blopSeason.date_end) return '';
+    const ms=new Date(blopSeason.date_end).getTime()-Date.now();
+    if(ms<=0) return 'Saison terminée \u2014 nouveau classement imminent';
+    const d=Math.floor(ms/86400000), h=Math.floor((ms%86400000)/3600000), m=Math.floor((ms%3600000)/60000);
+    return 'Fin de saison dans '+(d>0? d+'j '+h+'h' : (h>0? h+'h '+m+'min' : m+'min'));
+  }
+  function _podiumHTML(rows){
+    if(!rows || !rows.length) return '';
+    const order=[1,0,2], medal=['\uD83E\uDD47','\uD83E\uDD48','\uD83E\uDD49']; // affichage 2e-1er-3e
+    let h='';
+    order.forEach(idx=>{ const r=rows[idx]; if(!r) return; const pos=idx+1;
+      h+='<div class="col p'+pos+'"><div class="medal">'+medal[idx]+'</div><div class="pname">'+_esc(r.username||'\u2014')+'</div><div class="pscore">'+fmt((r.season_points!=null?r.season_points:r.best_score)||0)+'</div><div class="bar"></div></div>'; });
+    return h;
+  }
+  async function openSeason(){
+    show($('#seasonOverlay'));
+    $('#seasonLeague').innerHTML = _leagueChip((blopProfile&&blopProfile.current_league)||'Bronze');
+    $('#seasonCountdown').textContent = _seasonEndsInText();
+    const podium=$('#podium'), board=$('#seasonBoard'), note=$('#seasonNote');
+    podium.innerHTML=''; board.innerHTML=''; note.textContent='';
+    if(!supa){ note.textContent='Hors-ligne \u2014 classement de saison indisponible.'; return; }
+    if(!blopSeasonId){ note.textContent='Saison indisponible pour le moment.'; return; }
+    note.textContent='Chargement\u2026';
+    try{
+      const res=await supa.rpc('blop_leaderboard_top', { p_season_id: blopSeasonId, p_limit: 100 });
+      if(res.error) throw res.error;
+      const rows=res.data||[];
+      podium.innerHTML=_podiumHTML(rows.slice(0,3));
+      if(!rows.length){ note.textContent='Sois le premier \u00e0 marquer un score cette saison\u00a0!'; return; }
+      rows.forEach(r=>{ const me=blopUid && r.user_id===blopUid;
+        board.appendChild(makeRow(r.rank, { pseudo:r.username, level:r.best_level, score:(r.season_points!=null?r.season_points:r.best_score) }, me?'me':'')); });
+      note.textContent = rows.length>=100 ? 'Top 100 de la saison.' : '';
+    }catch(e){ note.textContent='Classement de saison momentan\u00e9ment indisponible.'; console.warn('[blop] season board', e); }
+  }
+  /* ============ fin module Phase 5 ============ */
+
+  /* ============ PHASE 6 — Défi hebdomadaire (frontend) ============ */
+  const K_WCH='cascadeTap.wch';   // { cid, prog, claimed }
+  function _wchLoad(){ try{ return JSON.parse(localStorage.getItem(K_WCH)||'null'); }catch(e){ return null; } }
+  function _wchSave(o){ try{ localStorage.setItem(K_WCH, JSON.stringify(o)); }catch(e){} }
+  function _wchState(){
+    const cid = blopChallenge ? blopChallenge.id : null;
+    let s=_wchLoad();
+    if(!s || (cid && s.cid!==cid)){ s={ cid:cid, prog:0, claimed:false }; _wchSave(s); }   // reset quand nouveau défi
+    return s;
+  }
+  // type : combo_size | score_single | games | level | rainbow | pop ; mode : 'add' | 'single'
+  function wchProgress(type, value, mode){
+    if(!blopChallenge || blopChallenge.challenge_type!==type) return;
+    const s=_wchState(); if(s.claimed) return;
+    if(mode==='single'){ if(value>=blopChallenge.target_value) s.prog=blopChallenge.target_value; }
+    else { s.prog += value; }
+    _wchSave(s); renderChallenge();
+    if(s.prog>=blopChallenge.target_value) wchTryClaim();
+  }
+  async function wchTryClaim(){
+    const s=_wchState();
+    if(!blopChallenge || s.claimed || s.prog<blopChallenge.target_value) return;
+    if(!supa || !blopReady || !blopUid) return;   // hors-ligne : ré-essai au prochain chargement
+    try{
+      const res=await supa.rpc('blop_complete_challenge', { p_challenge_id: blopChallenge.id });
+      s.claimed=true; _wchSave(s); renderChallenge();
+      if(res && res.data && String(res.data).indexOf('completed +')===0){ wchBanner(blopChallenge.bonus_points); track('challenge_completed', { type:blopChallenge.challenge_type, bonus:blopChallenge.bonus_points }); }
+    }catch(e){ console.warn('[blop] claim challenge', e); }
+  }
+  function renderChallenge(){
+    const has=!!blopChallenge;
+    const s=_wchState();
+    let html='';
+    if(has){
+      const done=Math.min(s.prog, blopChallenge.target_value);
+      html='<div class="wch-head">Défi de la semaine \u2014 +'+fmt(blopChallenge.bonus_points)+' pts saison</div>'+
+           '<div class="wch-line">'+_esc(blopChallenge.description)+'</div>'+
+           '<div class="wch-prog">'+ (s.claimed ? 'R\u00e9ussi \u2705' : (done+' / '+blopChallenge.target_value)) +'</div>';
+    }
+    ['#weeklyChallenge','#weeklyChallengeOver'].forEach(id=>{ const el=$(id); if(el) el.innerHTML=html; });
+  }
+  function wchBanner(bonus){ try{ toast('D\u00e9fi hebdo r\u00e9ussi\u00a0! +'+fmt(bonus)+' pts de saison'); }catch(e){} }
+  /* ============ fin module Phase 6 ============ */
+
+  /* ============ PHASE 7 — Progression long terme (frontend) ============ */
+  const K_TG='cascadeTap.totalGames', K_TR='cascadeTap.totalRainbow';
+  const RARE_POOL=['poussin_dore','renard_argent','hibou_rubis','panda_email','licorne_cristal','grenouille_jade','chat_onyx','ourson_ambre'];
+  function _ctr(k){ try{ return parseInt(localStorage.getItem(k)||'0',10)||0; }catch(e){ return 0; } }
+  function _ctrInc(k){ const v=_ctr(k)+1; try{ localStorage.setItem(k,String(v)); }catch(e){} return v; }
+
+  function renderAccountXP(){
+    const el=$('#accountBar'); if(!el) return;
+    if(!blopProfile){ el.innerHTML=''; return; }
+    const lvl=blopProfile.account_level||1, xp=blopProfile.account_xp||0;
+    let curReq=0, nextReq=null;
+    for(const r of blopLevels){ if(r.level===lvl) curReq=r.xp_required; if(r.level===lvl+1) nextReq=r.xp_required; }
+    let pct=100, sub='Niveau max';
+    if(nextReq!=null && nextReq>curReq){ pct=Math.max(0,Math.min(100,Math.round((xp-curReq)/(nextReq-curReq)*100))); sub=fmt(xp-curReq)+' / '+fmt(nextReq-curReq)+' XP'; }
+    el.innerHTML='<div class="acc-top"><span>Compte niv. '+lvl+'</span><span>'+sub+'</span></div><div class="acc-track"><div class="acc-fill" style="width:'+pct+'%"></div></div>';
+  }
+
+  // Débloque les succès dont la condition est atteinte (serveur dédoublonne ; on marque local pour éviter le spam)
+  function achCheck(type, value){
+    if(!supa || !blopReady || !blopUid || !blopAchievements.length) return;
+    for(const a of blopAchievements){
+      if(a.condition_type!==type) continue;
+      if(value>=a.condition_value && !achUnlocked[a.code]){
+        achUnlocked[a.code]=true;
+        supa.rpc('blop_unlock_achievement',{ p_code:a.code })
+          .then(r=>{ if(r&&r.data&&String(r.data)==='unlocked') toast('Succ\u00e8s d\u00e9bloqu\u00e9 : '+a.name+' \uD83C\uDFC6'); })
+          .catch(()=>{ achUnlocked[a.code]=false; });
+      }
+    }
+  }
+
+  // Chute de bloc rare (probabilité), à récolter -> collection
+  function rareBlockDrop(chance){
+    if(!supa || !blopReady || !blopUid) return;
+    if(Math.random() >= chance) return;
+    const blk=RARE_POOL[Math.floor(Math.random()*RARE_POOL.length)];
+    supa.rpc('blop_collect_block',{ p_collection_code:'rares', p_block_id:blk })
+      .then(r=>{ if(r&&r.data){ const s=String(r.data);
+        if(s==='collection_complete') toast('Collection compl\u00e8te\u00a0! R\u00e9compense d\u00e9bloqu\u00e9e \u2728');
+        else if(s.indexOf('collected')===0) toast('Bloc rare trouv\u00e9\u00a0! ('+s.replace('collected ','')+')'); } })
+      .catch(()=>{});
+  }
+
+  // Après chaque partie : XP + niveau + streak + succès cumulés
+  async function afterGameProgress(){
+    const tg=_ctrInc(K_TG);
+    achCheck('games', tg); achCheck('score_single', S.score); achCheck('level', S.level);
+    if(!supa || !blopReady || !blopUid) return;
+    try{
+      const xp=Math.floor(S.score/10)+S.level*10;
+      const res=await supa.rpc('blop_after_game',{ p_xp:xp });
+      if(res && res.data && !res.data.error){
+        if(blopProfile){ blopProfile.account_xp=res.data.xp; blopProfile.account_level=res.data.level; blopProfile.play_streak=res.data.streak; }
+        renderAccountXP();
+        if(res.data.leveled_up) toast('Niveau de compte '+res.data.level+' atteint\u00a0!');
+        achCheck('streak', res.data.streak);
+      }
+    }catch(e){ console.warn('[blop] after_game', e); }
+  }
+
+  async function openProfile(){
+    show($('#profileOverlay'));
+    const lvl=blopProfile?(blopProfile.account_level||1):1, xp=blopProfile?(blopProfile.account_xp||0):0, streak=blopProfile?(blopProfile.play_streak||0):0;
+    $('#profHead').innerHTML='<div class="prof-lvl">Compte niveau '+lvl+'</div><div class="prof-sub">'+fmt(xp)+' XP cumul\u00e9s \u00b7 streak '+streak+' jour'+(streak>1?'s':'')+'</div>';
+    const ac=$('#profAch'); ac.innerHTML='';
+    if(!blopAchievements.length){ ac.innerHTML='<div class="prof-empty">Hors-ligne \u2014 succ\u00e8s indisponibles.</div>'; }
+    else blopAchievements.forEach(a=>{ const on=!!achUnlocked[a.code];
+      ac.innerHTML+='<li class="ach '+(on?'on':'off')+'"><span class="ach-ic">'+(on?'\uD83C\uDFC6':'\uD83D\uDD12')+'</span><span class="ach-tx"><b>'+_esc(a.name)+'</b><small>'+_esc(a.description)+'</small></span></li>'; });
+    const co=$('#profCol'); co.innerHTML='';
+    if(!supa){ co.innerHTML='<div class="prof-empty">Hors-ligne.</div>'; return; }
+    try{
+      const cols=await supa.from('blop_collections').select('code,name,blocks_required,reward');
+      const ev=await supa.from('blop_events').select('event_data').eq('event_type','rare_block');
+      const done={}; (ev.data||[]).forEach(r=>{ const c=r.event_data&&r.event_data.collection; if(c){ (done[c]=done[c]||new Set()).add(r.event_data.block); } });
+      (cols.data||[]).forEach(c=>{ const n=done[c.code]?done[c.code].size:0;
+        co.innerHTML+='<li class="col-row"><span>'+_esc(c.name)+'</span><span>'+Math.min(n,c.blocks_required)+' / '+c.blocks_required+'</span></li>'; });
+      if(!(cols.data||[]).length) co.innerHTML='<div class="prof-empty">Aucune collection.</div>';
+    }catch(e){ co.innerHTML='<div class="prof-empty">Collections indisponibles.</div>'; }
+  }
+  /* ============ fin module Phase 7 ============ */
+
+  /* ============ PHASE 8 — Analytics PostHog (config.js, repli mock console) ============ */
+  let _phMock=true, _phInit=false;
+  function initAnalytics(){
+    if(_phInit) return; _phInit=true;
+    const key=window.POSTHOG_KEY, host=window.POSTHOG_HOST||'https://eu.i.posthog.com';
+    _phMock = !key || String(key).indexOf('XXXX')>=0;
+    if(_phMock) return;   // pas de clé réelle -> mode console
+    try{
+      !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once unregister getFeatureFlag isFeatureEnabled reloadFeatureFlags identify setPersonProperties group reset get_distinct_id opt_in_capturing opt_out_capturing".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+      window.posthog.init(key,{ api_host:host, capture_pageview:false, autocapture:false, persistence:'localStorage' });
+    }catch(e){ _phMock=true; }
+  }
+  function track(ev, props){
+    props=props||{};
+    if(_phMock){ try{ console.log('[analytics:mock]', ev, props); }catch(e){} return; }
+    try{ if(window.posthog && window.posthog.capture) window.posthog.capture(ev, props); }catch(e){}
+  }
+  /* ============ fin module Phase 8 ============ */
+  // Miroir best-effort vers blop_profiles ; le local pilote le runtime (hors-ligne OK)
+  async function syncLives(){
+    if(!supa || !blopReady || !blopUid) return;
+    try{ const {n,t}=_loadLives(); await supa.from('blop_profiles').update({ lives:n, last_life_regen_at:new Date(t).toISOString() }).eq('id',blopUid); }catch(e){}
+  }
+  function adoptServerLivesIfFirstRun(profile){
+    let hasLocal=false; try{ hasLocal = localStorage.getItem(K_LIVES)!==null; }catch(e){}
+    if(!hasLocal && profile && typeof profile.lives==='number') _saveLives(Math.max(0,Math.min(LIVES_MAX,profile.lives)), Date.now());
+  }
+  /* ============ fin module Phase 3 ============ */
   function todayStartISO(){ const d=new Date(); d.setHours(0,0,0,0); return d.toISOString(); }
   // Pure-JS SHA-256 + HMAC (repli quand crypto.subtle n'est pas dispo, ex. WebView iOS)
   const _K256=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
@@ -1680,15 +2142,26 @@
     }catch(e){}
     try{ return hmacSha256Hex(SIGN_SECRET, msg); }catch(e){ return null; }
   }
+  function _storageWorks(){ try{ const k='__blop_t'; localStorage.setItem(k,'1'); localStorage.removeItem(k); return true; }catch(e){ return false; } }
+  function _memStorage(){ const m={}; return { getItem:k=> (k in m? m[k] : null), setItem:(k,v)=>{ m[k]=String(v); }, removeItem:k=>{ delete m[k]; } }; }
+  function _createSupa(){
+    const base={ persistSession:true, autoRefreshToken:true };
+    try{
+      const auth = _storageWorks() ? base : Object.assign({}, base, { storage:_memStorage() });
+      return window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth });
+    }catch(e){
+      // dernier recours : sans session -> classement en lecture seule garanti (contexte file:// verrouillé)
+      try{ return window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth:{ persistSession:false, autoRefreshToken:false } }); }catch(e2){ return null; }
+    }
+  }
   async function initDB(){
     if(dbTried) return supa; dbTried=true;
-    try{
-      if(window.supabase && SUPABASE_URL.indexOf('http')===0 && SUPABASE_KEY){
-        supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth:{ persistSession:false, autoRefreshToken:false } });
-        await fetchBoard();
-        subscribeBoard();
-      }
-    }catch(e){ supa=null; }
+    if(window.supabase && SUPABASE_URL.indexOf('http')===0 && SUPABASE_KEY){ supa=_createSupa(); }
+    if(supa){
+      try{ await fetchBoard(); }catch(e){ console.warn('[blop] fetchBoard', e); }
+      try{ subscribeBoard(); }catch(e){ console.warn('[blop] realtime indisponible', e); }   // un échec temps-réel ne coupe plus le classement
+      try{ await blopAuth(); }catch(e){ console.warn('[blop] blopAuth', e); }
+    }
     updateBoardUI(); renderBoards();
     return supa;
   }
@@ -1752,6 +2225,7 @@
     const pin=document.getElementById('pseudoInput'), ps=cleanPseudo(pin.value);
     if(!ps){ pin.focus(); toast('Choisis un pseudo'); return; }
     savePseudo(ps);
+    updateBlopUsername(ps);   // Phase 2 : miroir du pseudo vers blop_profiles
     const pb=document.getElementById('publishBtn'); pb.disabled=true; pb.textContent='Publication\u2026';
     try{
       const ts=Date.now();
@@ -1849,6 +2323,8 @@
   /* ============================ Wire up ============================ */
   $('#playBtn').addEventListener('click', startGame);
   $('#againBtn').addEventListener('click', startGame);
+  $('#adLifeBtn').addEventListener('click', ()=>{ uiClick && uiClick(); rewardedAd(()=>{ addLife(1); hide($('#livesOverlay')); startGame(); }); });
+  $('#livesCloseBtn').addEventListener('click', ()=>{ hide($('#livesOverlay')); });
   $('#pauseBtn').addEventListener('click', ()=>{ if(S.state==='paused') resumeGame(); else pauseGame(); });
   $('#resumeBtn').addEventListener('click', resumeGame);
   $('#restartBtn').addEventListener('click', startGame);
@@ -1856,9 +2332,13 @@
   $('#shareRankBtn').addEventListener('click', shareRank);
   $('#publishBtn').addEventListener('click', publishScore);
   $('#startBoardBtn').addEventListener('click', ()=>{ ensureAudio(); uiClick(); initDB(); renderBoards(); updateBoardUI(); show(boardOv); });
+  $('#seasonBtn').addEventListener('click', ()=>{ ensureAudio(); uiClick(); initDB(); openSeason(); });
+  $('#profileBtn').addEventListener('click', ()=>{ ensureAudio(); uiClick(); initDB(); openProfile(); });
+  $('#profCloseBtn').addEventListener('click', ()=>{ hide($('#profileOverlay')); });
+  $('#seasonCloseBtn').addEventListener('click', ()=>{ hide($('#seasonOverlay')); });
   $('#boardCloseBtn').addEventListener('click', ()=>hide(boardOv));
   $('#changeDiffBtn').addEventListener('click', ()=>{
-    stopMusic(); S.state='start'; hide(pauseOv); resetGame(); updateFooter(); refreshDiffUI(); show(startOv);
+    stopMusic(); S.state='start'; hide(pauseOv); resetGame(); updateFooter(); refreshDiffUI(); show(startOv); renderLives();
   });
   const muteBtn=$('#muteBtn');
   function refreshMute(){ muteBtn.classList.toggle('off', S.muted); muteBtn.setAttribute('aria-label', S.muted?'Activer le son':'Couper le son');
@@ -1903,6 +2383,8 @@
   load(); loadQuests(); refreshMute(); refreshMusic(); refreshHaptic(); refreshDiffUI();
   setTimeout(()=>{ initHaptics(); refreshHaptic(); }, 600);
   setTimeout(()=>{ initHaptics(); refreshHaptic(); }, 2000); resetGame(); sizeGame(); updateHUD(); renderQuests();
+  initAnalytics(); track('app_open', { v:GAME_VERSION });
+  renderLives(); startLivesTicker(); renderLeagueBadge(); renderChallenge(); renderAccountXP(); initDB();
   requestAnimationFrame(frame);
 })();
 </script>
