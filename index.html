@@ -411,7 +411,7 @@
 "use strict";
 (function(){
   /* ============================ Constants ============================ */
-  const GAME_VERSION = 'v30';   // <- à incrémenter à chaque nouvelle version publiée
+  const GAME_VERSION = 'v31';   // <- à incrémenter à chaque nouvelle version publiée
   const COLS = 7, ROWS = 12, NC = 5;
   const RAINBOW = 9;   // valeur spéciale dans la grille : bestiole arc-en-ciel
   // Blocs spéciaux non-matchables (valeurs réservées dans la grille)
@@ -1342,7 +1342,7 @@
   // l'accélération est douce et plafonnée, donc Facile ne rattrape jamais Intermédiaire.
   const DIFFS = {
     facile:  { name:'Facile',        fall0:2.6, fallK:0.010, fallMax:4.0,  spawn0:1100, spawnK:1.6, spawnMin:820 },
-    moyen:   { name:'Intermédiaire', fall0:4.2, fallK:0.012, fallMax:7.0,  spawn0:920,  spawnK:2.6, spawnMin:520 },
+    moyen:   { name:'Intermédiaire', fall0:4.5, fallK:0.014, fallMax:7.8,  spawn0:860,  spawnK:2.9, spawnMin:470 },
     expert:  { name:'Expert',        fall0:7.0, fallK:0.030, fallMax:14.0, spawn0:600,  spawnK:4.2, spawnMin:240 },
   };
   // Ligne de danger : perte si `cols` colonnes dépassent `height` pendant `grace` ms. Facile : pas de ligne.
@@ -1535,7 +1535,8 @@
     downOn=true; moved=false; downX=e.clientX; downY=e.clientY;
     const p=cellAt(e.clientX,e.clientY);
     const onEmpty = p.row>=0&&p.row<ROWS&&p.col>=0&&p.col<COLS && S.grid[p.row][p.col]===-1;
-    S.grab = onEmpty ? fallerNear(p.cf,p.rf) : null;
+    const _gb = onEmpty ? fallerNear(p.cf,p.rf) : null;
+    S.grab = (_gb && !isStone(_gb.ci) && !isIce(_gb.ci)) ? _gb : null;   // pierre/glace : non déplaçables
     S.grabTarget = S.grab ? S.grab.col : null;
     if(S.grab){
       S.grabOff = ((S.grab.xr!=null?S.grab.xr:S.grab.col)+0.5) - p.cf;   // écart doigt ↔ bestiole
