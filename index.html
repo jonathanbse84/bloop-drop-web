@@ -411,8 +411,8 @@
 "use strict";
 (function(){
   /* ============================ Constants ============================ */
-  const GAME_VERSION = 'v24';   // <- à incrémenter à chaque nouvelle version publiée
-  const COLS = 7, ROWS = 12, NC = 5, MIN_GROUP = 3;
+  const GAME_VERSION = 'v25';   // <- à incrémenter à chaque nouvelle version publiée
+  const COLS = 7, ROWS = 12, NC = 5;
   const RAINBOW = 9;   // valeur spéciale dans la grille : bestiole arc-en-ciel
   const FLASH_MS = 150, DROP_MS = 190, GAP_MS = 70;
   const STEP_MS = FLASH_MS + DROP_MS + GAP_MS;
@@ -558,7 +558,7 @@
           seen[k2]=1; st.push([nr,nc]);
         }
       }
-      if(comp.length>=MIN_GROUP) groups.push(comp);
+      if(comp.length>=minGroup()) groups.push(comp);
     }
     return groups;
   }
@@ -611,7 +611,7 @@
     const g0=cloneGrid(grid);
     let first;
     if(rainbow){ first=rainbowTargets(g0, r0, c0); if(!first||first.length<2) return null; }
-    else { first=findGroup(g0, r0, c0); if(first.length<MIN_GROUP) return null; }
+    else { first=findGroup(g0, r0, c0); if(first.length<minGroup()) return null; }
     const steps=[]; let g=g0, chain=0, total=0, clearCells=first;
     while(true){
       chain++;
@@ -1304,6 +1304,8 @@
     if(S.diff==='expert') return { height:ROWS-3, grace:1500 };   // ligne plus basse, 1,5 s de sursis
     return null;
   }
+  // Taille minimale d'un groupe pour éclater : 2 en Facile (accessible), 3 sinon.
+  function minGroup(){ return S.diff==='facile' ? 2 : 3; }
   const spawnInterval = ms => { const s=ms/1000, D=DIFFS[S.diff]||DIFFS.moyen; return Math.max(D.spawnMin, D.spawn0 - s*D.spawnK); };
   const fallSpeed = ms => { const s=ms/1000, D=DIFFS[S.diff]||DIFFS.moyen; return Math.min(D.fallMax, D.fall0 + s*D.fallK); }; // rows / sec
 
@@ -1519,7 +1521,7 @@
       return;
     }
     const grp=findGroup(S.grid,row,col);
-    if(grp.length>=MIN_GROUP){ const res=computeCascade(S.grid,row,col); if(res) startResolve(res); }
+    if(grp.length>=minGroup()){ const res=computeCascade(S.grid,row,col); if(res) startResolve(res); }
     else { S.popups.push({x:(col+0.5)*cell,y:(row+0.5)*cell,t:0,dur:500,text:'✕',color:'rgba(200,210,240,.7)'}); if(!reduceMotion) S.shake=Math.min(S.shake+2,5); buzz(8,'light'); failSound(); }
   }
 
