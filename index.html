@@ -411,8 +411,8 @@
 "use strict";
 (function(){
   /* ============================ Constants ============================ */
-  const GAME_VERSION = 'v22';   // <- à incrémenter à chaque nouvelle version publiée
-  const COLS = 7, ROWS = 12, NC = 5;
+  const GAME_VERSION = 'v24';   // <- à incrémenter à chaque nouvelle version publiée
+  const COLS = 7, ROWS = 12, NC = 5, MIN_GROUP = 3;
   const RAINBOW = 9;   // valeur spéciale dans la grille : bestiole arc-en-ciel
   const FLASH_MS = 150, DROP_MS = 190, GAP_MS = 70;
   const STEP_MS = FLASH_MS + DROP_MS + GAP_MS;
@@ -456,6 +456,7 @@
     streaks:[],
     shake:0,
     choke:0,
+    dangerT:0,
     grab:null,
     grabOff:0,
     lastDragBuzz:0,
@@ -557,7 +558,7 @@
           seen[k2]=1; st.push([nr,nc]);
         }
       }
-      if(comp.length>=2) groups.push(comp);
+      if(comp.length>=MIN_GROUP) groups.push(comp);
     }
     return groups;
   }
@@ -610,7 +611,7 @@
     const g0=cloneGrid(grid);
     let first;
     if(rainbow){ first=rainbowTargets(g0, r0, c0); if(!first||first.length<2) return null; }
-    else { first=findGroup(g0, r0, c0); if(first.length<2) return null; }
+    else { first=findGroup(g0, r0, c0); if(first.length<MIN_GROUP) return null; }
     const steps=[]; let g=g0, chain=0, total=0, clearCells=first;
     while(true){
       chain++;
@@ -967,6 +968,18 @@
   function clipBoard(ctx){ rr(ctx,0.5,0.5,boardW-1,boardH-1,15); ctx.clip(); }
   function drawDanger(ctx){
     const pulse=0.5+0.5*Math.sin(performance.now()/220);
+    const dc=dangerCfg();
+    if(dc){
+      const lineY=(ROWS-dc.height)*cell, active=S.dangerT>0;
+      const fast=0.5+0.5*Math.sin(performance.now()/(active?90:260));
+      for(let c=0;c<COLS;c++){ const st=stackCol(c); if(st<dc.height) continue;
+        const a=0.18+0.30*fast; ctx.fillStyle='rgba(255,64,96,'+a.toFixed(3)+')'; ctx.fillRect(c*cell,0,cell,lineY+cell*0.4); }
+      ctx.save(); ctx.setLineDash([cell*0.35, cell*0.22]); ctx.lineWidth=Math.max(2,cell*0.06);
+      ctx.strokeStyle='rgba(255,64,96,'+(active?0.9:(0.35+0.35*pulse)).toFixed(3)+')';
+      ctx.beginPath(); ctx.moveTo(0,lineY); ctx.lineTo(boardW,lineY); ctx.stroke(); ctx.restore();
+      if(active){ const a=0.35+0.45*fast; ctx.save(); ctx.lineWidth=7; ctx.strokeStyle='rgba(255,48,80,'+a.toFixed(3)+')'; rr(ctx,3,3,boardW-6,boardH-6,13); ctx.stroke(); ctx.restore(); }
+      return;
+    }
     for(let c=0;c<COLS;c++){
       const st=stackCol(c); if(st<ROWS-2) continue;
       const sev=(st-(ROWS-3))/3;
@@ -1242,7 +1255,7 @@
   /* ============================ Game flow ============================ */
   function resetGame(){
     S.grid=newGrid(); S.fallers=[]; S.score=0; S.elapsed=0; S.spawnAcc=0;
-    S.anim=null; S.particles=[]; S.popups=[]; S.shake=0; S.choke=0; S.bestCascadeGame=null;
+    S.anim=null; S.particles=[]; S.popups=[]; S.shake=0; S.choke=0; S.dangerT=0; S.bestCascadeGame=null;
     S.level=1; S.species=0; S.shape=0; S.musicTrack=0; S.recordFired=false;
     S.rainbowDue=false; S.rainbowUsed=0; S.popped=0;
     S.gifBlob=null; if(S.gifUrl){ URL.revokeObjectURL(S.gifUrl); S.gifUrl=null; }
@@ -1282,9 +1295,15 @@
   // l'accélération est douce et plafonnée, donc Facile ne rattrape jamais Intermédiaire.
   const DIFFS = {
     facile:  { name:'Facile',        fall0:2.6, fallK:0.010, fallMax:4.0,  spawn0:1100, spawnK:1.6, spawnMin:820 },
-    moyen:   { name:'Intermédiaire', fall0:4.8, fallK:0.014, fallMax:6.6,  spawn0:800,  spawnK:2.8, spawnMin:560 },
-    expert:  { name:'Expert',        fall0:7.0, fallK:0.026, fallMax:11.0, spawn0:600,  spawnK:3.6, spawnMin:360 },
+    moyen:   { name:'Intermédiaire', fall0:4.8, fallK:0.016, fallMax:8.5,  spawn0:800,  spawnK:3.2, spawnMin:400 },
+    expert:  { name:'Expert',        fall0:7.0, fallK:0.030, fallMax:14.0, spawn0:600,  spawnK:4.2, spawnMin:240 },
   };
+  // Ligne de danger : perte si une colonne dépasse `height` pendant `grace` ms. Facile : pas de ligne.
+  function dangerCfg(){
+    if(S.diff==='moyen')  return { height:ROWS-2, grace:3000 };   // ligne à 2 du haut, 3 s de sursis
+    if(S.diff==='expert') return { height:ROWS-3, grace:1500 };   // ligne plus basse, 1,5 s de sursis
+    return null;
+  }
   const spawnInterval = ms => { const s=ms/1000, D=DIFFS[S.diff]||DIFFS.moyen; return Math.max(D.spawnMin, D.spawn0 - s*D.spawnK); };
   const fallSpeed = ms => { const s=ms/1000, D=DIFFS[S.diff]||DIFFS.moyen; return Math.min(D.fallMax, D.fall0 + s*D.fallK); }; // rows / sec
 
@@ -1330,7 +1349,7 @@
       if(a.res.bonus){ addScore(a.res.bonus); }
       if(a.res.chain>=3){ bigPopup('Combo ×'+a.res.chain); track('combo_achieved', { chain:a.res.chain }); }
       questProgress('combo', a.res.chain, 'max');
-      if(a.res.chain>=4 && !a.res.wasRainbow && S.diff!=='expert'){ S.rainbowDue=true; toast('Bonus arc-en-ciel\u00a0! Il arrive\u2026'); }
+      if(a.res.chain>=5 && !a.res.wasRainbow && S.diff!=='expert'){ S.rainbowDue=true; toast('Bonus arc-en-ciel\u00a0! Il arrive\u2026'); }
       commitCascade(a.res);
       S.anim=null; S.state='playing';
     }
@@ -1500,7 +1519,7 @@
       return;
     }
     const grp=findGroup(S.grid,row,col);
-    if(grp.length>=2){ const res=computeCascade(S.grid,row,col); if(res) startResolve(res); }
+    if(grp.length>=MIN_GROUP){ const res=computeCascade(S.grid,row,col); if(res) startResolve(res); }
     else { S.popups.push({x:(col+0.5)*cell,y:(row+0.5)*cell,t:0,dur:500,text:'✕',color:'rgba(200,210,240,.7)'}); if(!reduceMotion) S.shake=Math.min(S.shake+2,5); buzz(8,'light'); failSound(); }
   }
 
@@ -1526,6 +1545,10 @@
         if(Math.abs(f.col-f.xr)<0.04) f.xr=f.col;     // arrivée nette
       }
       settleFallers();
+      const dc=dangerCfg();
+      if(dc){ let over=false; for(let c=0;c<COLS;c++){ if(stackCol(c)>=dc.height){ over=true; break; } }
+              if(over){ S.dangerT+=dt; if(S.dangerT>=dc.grace) gameOver(); } else { S.dangerT=0; } }
+      else { S.dangerT=0; }
       if(anySpace()){ S.choke=0; } else { S.choke+=dt; if(S.choke>=1200) gameOver(); }
       if(S.state==='playing'){
         S.spawnAcc+=dt; const iv=spawnInterval(S.elapsed);
