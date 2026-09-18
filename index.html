@@ -411,7 +411,7 @@
 "use strict";
 (function(){
   /* ============================ Constants ============================ */
-  const GAME_VERSION = 'v29';   // <- à incrémenter à chaque nouvelle version publiée
+  const GAME_VERSION = 'v30';   // <- à incrémenter à chaque nouvelle version publiée
   const COLS = 7, ROWS = 12, NC = 5;
   const RAINBOW = 9;   // valeur spéciale dans la grille : bestiole arc-en-ciel
   // Blocs spéciaux non-matchables (valeurs réservées dans la grille)
@@ -1342,13 +1342,13 @@
   // l'accélération est douce et plafonnée, donc Facile ne rattrape jamais Intermédiaire.
   const DIFFS = {
     facile:  { name:'Facile',        fall0:2.6, fallK:0.010, fallMax:4.0,  spawn0:1100, spawnK:1.6, spawnMin:820 },
-    moyen:   { name:'Intermédiaire', fall0:4.8, fallK:0.016, fallMax:8.5,  spawn0:800,  spawnK:3.2, spawnMin:400 },
+    moyen:   { name:'Intermédiaire', fall0:4.2, fallK:0.012, fallMax:7.0,  spawn0:920,  spawnK:2.6, spawnMin:520 },
     expert:  { name:'Expert',        fall0:7.0, fallK:0.030, fallMax:14.0, spawn0:600,  spawnK:4.2, spawnMin:240 },
   };
-  // Ligne de danger : perte si une colonne dépasse `height` pendant `grace` ms. Facile : pas de ligne.
+  // Ligne de danger : perte si `cols` colonnes dépassent `height` pendant `grace` ms. Facile : pas de ligne.
   function dangerCfg(){
-    if(S.diff==='moyen')  return { height:ROWS-2, grace:3000 };   // ligne à 2 du haut, 3 s de sursis
-    if(S.diff==='expert') return { height:ROWS-3, grace:2500 };   // ligne plus basse, 2,5 s de sursis
+    if(S.diff==='moyen')  return { height:ROWS-1, grace:3000, cols:2 };   // ligne haute, il faut 2 colonnes, 3 s
+    if(S.diff==='expert') return { height:ROWS-3, grace:2500, cols:1 };   // ligne plus basse, 1 colonne suffit, 2,5 s
     return null;
   }
   // Taille minimale d'un groupe pour éclater : 2 en Facile (accessible), 3 sinon.
@@ -1602,8 +1602,8 @@
       }
       settleFallers();
       const dc=dangerCfg();
-      if(dc){ let over=false; for(let c=0;c<COLS;c++){ if(stackCol(c)>=dc.height){ over=true; break; } }
-              if(over){ S.dangerT+=dt; if(S.dangerT>=dc.grace) gameOver(); } else { S.dangerT=0; } }
+      if(dc){ let n=0; for(let c=0;c<COLS;c++){ if(stackCol(c)>=dc.height) n++; }
+              if(n>=(dc.cols||1)){ S.dangerT+=dt; if(S.dangerT>=dc.grace) gameOver(); } else { S.dangerT=0; } }
       else { S.dangerT=0; }
       if(anySpace()){ S.choke=0; } else { S.choke+=dt; if(S.choke>=1200) gameOver(); }
       if(S.state==='playing'){
