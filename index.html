@@ -411,7 +411,7 @@
 "use strict";
 (function(){
   /* ============================ Constants ============================ */
-  const GAME_VERSION = 'v27';   // <- à incrémenter à chaque nouvelle version publiée
+  const GAME_VERSION = 'v28';   // <- à incrémenter à chaque nouvelle version publiée
   const COLS = 7, ROWS = 12, NC = 5;
   const RAINBOW = 9;   // valeur spéciale dans la grille : bestiole arc-en-ciel
   // Blocs spéciaux non-matchables (valeurs réservées dans la grille)
@@ -1347,7 +1347,7 @@
   // Ligne de danger : perte si une colonne dépasse `height` pendant `grace` ms. Facile : pas de ligne.
   function dangerCfg(){
     if(S.diff==='moyen')  return { height:ROWS-2, grace:3000 };   // ligne à 2 du haut, 3 s de sursis
-    if(S.diff==='expert') return { height:ROWS-3, grace:1500 };   // ligne plus basse, 1,5 s de sursis
+    if(S.diff==='expert') return { height:ROWS-3, grace:2500 };   // ligne plus basse, 2,5 s de sursis
     return null;
   }
   // Taille minimale d'un groupe pour éclater : 2 en Facile (accessible), 3 sinon.
