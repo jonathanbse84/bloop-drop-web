@@ -286,8 +286,8 @@
     <div class="wch" id="weeklyChallenge"></div>
     <div class="difftitle">Difficulté</div>
     <div class="diffs" id="diffPick">
-      <button class="diffbtn" data-diff="facile">Facile<small>tout en douceur</small></button>
-      <button class="diffbtn on" data-diff="moyen">Intermédiaire<small>équilibré</small></button>
+      <button class="diffbtn" data-diff="facile">Détente<small>on se relâche</small></button>
+      <button class="diffbtn on" data-diff="moyen">Classique<small>équilibré</small></button>
       <button class="diffbtn" data-diff="expert">Expert<small>ça dépote</small></button>
     </div>
     <div class="btnrow">
@@ -380,7 +380,7 @@
     <ol class="quests" id="questListOver"></ol>
     <div class="wch" id="weeklyChallengeOver"></div>
     <div class="board-title">Classement mondial</div>
-    <div class="lbtabs"><button class="lbtab" data-diffscope="facile">Facile</button><button class="lbtab active" data-diffscope="moyen">Interm.</button><button class="lbtab" data-diffscope="expert">Expert</button></div>
+    <div class="lbtabs"><button class="lbtab" data-diffscope="facile">Détente</button><button class="lbtab active" data-diffscope="moyen">Classique</button><button class="lbtab" data-diffscope="expert">Expert</button></div>
     <ol class="board" id="boardOver"></ol>
     <div class="lb-submit" id="lbSubmit">
       <input id="pseudoInput" class="pseudo" maxlength="16" placeholder="Ton pseudo" autocomplete="off" spellcheck="false">
@@ -398,7 +398,7 @@
 <div class="overlay" id="boardOverlay">
   <div class="card">
     <h2>Classement mondial</h2>
-    <div class="lbtabs"><button class="lbtab" data-diffscope="facile">Facile</button><button class="lbtab active" data-diffscope="moyen">Interm.</button><button class="lbtab" data-diffscope="expert">Expert</button></div>
+    <div class="lbtabs"><button class="lbtab" data-diffscope="facile">Détente</button><button class="lbtab active" data-diffscope="moyen">Classique</button><button class="lbtab" data-diffscope="expert">Expert</button></div>
     <ol class="board" id="boardMain"></ol>
     <p class="board-note" id="boardNote2"></p>
     <div class="btnrow"><button class="btn ghost" id="boardCloseBtn">Fermer</button></div>
@@ -411,7 +411,7 @@
 "use strict";
 (function(){
   /* ============================ Constants ============================ */
-  const GAME_VERSION = 'v33';   // <- à incrémenter à chaque nouvelle version publiée
+  const GAME_VERSION = 'v34';   // <- à incrémenter à chaque nouvelle version publiée
   const COLS = 7, ROWS = 12, NC = 5;
   const RAINBOW = 9;   // valeur spéciale dans la grille : bestiole arc-en-ciel
   // Blocs spéciaux non-matchables (valeurs réservées dans la grille)
@@ -646,7 +646,9 @@
       applyGravityWithLabels(g, lab);
       const groups=allGroups(g);
       // n'enchaîne que les alignements VRAIMENT nouveaux : formés par la fusion de >=2 composants distincts
-      const wake=groups.filter(grp=>{ const s=new Set(); for(const [r,c] of grp) s.add(lab[r][c]); return s.size>=2; });
+      const wake = (S.diff==='facile')
+        ? groups                                                                   // Détente : tout enchaîne (ancienne méca)
+        : groups.filter(grp=>{ const s=new Set(); for(const [r,c] of grp) s.add(lab[r][c]); return s.size>=2; });
       if(wake.length===0) break;
       clearCells=[]; for(const grp of wake) for(const cell of grp) clearCells.push(cell);
     }
@@ -1322,7 +1324,7 @@
     if(S.score>=S.best){ S.best=S.score; }
     saveBest();
     const _dur = Math.max(0, Math.round((Date.now()-(S.gameT0||Date.now()))/1000));
-    if(improved){ syncBlopScore(S.score, S.level, _dur); }   // Phase 2 : sync record -> Supabase
+    if(improved && S.diff!=='facile'){ syncBlopScore(S.score, S.level, _dur); }   // Détente : hors classement
     track('game_over', { score:S.score, level:S.level, duration_s:_dur });
     questProgress('pop', S.popped, 'add');
     questProgress('games', 1, 'add');
@@ -1353,7 +1355,7 @@
     return null;
   }
   // Taille minimale d'un groupe pour éclater : 2 en Facile (accessible), 3 sinon.
-  function minGroup(){ return S.diff==='facile' ? 2 : 3; }
+  function minGroup(){ return S.diff==='expert' ? 3 : 2; }
   // Fréquence d'apparition d'un bloc de pierre (1 tous les N blocs) : jamais en Facile.
   function stoneEvery(){ if(S.diff==='expert') return 9; if(S.diff==='moyen') return 12; return 0; }
   // Fréquence d'apparition d'un bloc de glace : Expert uniquement.
@@ -1777,7 +1779,7 @@
       saveBtn.style.display='none';
     }
     const pin=$('#pseudoInput'); if(pin && !pin.value) pin.value=getPseudo();
-    const pb=$('#publishBtn'); if(pb){ pb.disabled=false; pb.textContent='Publier mon score'; }
+    const pb=$('#publishBtn'); if(pb){ pb.disabled=false; pb.textContent='Publier mon score'; pb.style.display = (S.diff==='facile') ? 'none' : ''; }
     renderQuests();
     lbScope=S.diff; document.querySelectorAll('.lbtab').forEach(b=>b.classList.toggle('active', b.dataset.diffscope===S.diff));
     initDB(); updateBoardUI(); renderBoards(); fetchBoard();
@@ -2157,7 +2159,8 @@
     achCheck('games', tg); achCheck('score_single', S.score); achCheck('level', S.level);
     if(!supa || !blopReady || !blopUid) return;
     try{
-      const xp=Math.floor(S.score/10)+S.level*10;
+      let xp=Math.floor(S.score/10)+S.level*10;
+      if(S.diff==='facile') xp=Math.round(xp*0.3);   // Détente : XP réduite
       const res=await supa.rpc('blop_after_game',{ p_xp:xp });
       if(res && res.data && !res.data.error){
         if(blopProfile){ blopProfile.account_xp=res.data.xp; blopProfile.account_level=res.data.level; blopProfile.play_streak=res.data.streak; }
@@ -2340,6 +2343,7 @@
     if(ps) ps.disabled=!supa;
   }
   async function publishScore(){
+    if(S.diff==='facile'){ toast('Mode Détente : hors classement'); return; }   // Détente non classé
     const dbn=await initDB();
     if(!dbn){ toast('Classement indisponible'); return; }
     const pin=document.getElementById('pseudoInput'), ps=cleanPseudo(pin.value);
