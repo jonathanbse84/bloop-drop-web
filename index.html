@@ -433,7 +433,7 @@
 "use strict";
 (function(){
   /* ============================ Constants ============================ */
-  const GAME_VERSION = 'v37';   // <- à incrémenter à chaque nouvelle version publiée
+  const GAME_VERSION = 'v38';   // <- à incrémenter à chaque nouvelle version publiée
   const COLS = 7, ROWS = 12, NC = 5;
   const RAINBOW = 9;   // valeur spéciale dans la grille : bestiole arc-en-ciel
   // Blocs spéciaux non-matchables (valeurs réservées dans la grille)
@@ -2236,7 +2236,7 @@
   /* ============ Onboarding : tuto + choix du pseudo (1er lancement) ============ */
   const K_ONBOARDED='cascadeTap.onboarded';
   const ONB_STEPS=[
-    {e:'\uD83E\uDEE7', t:'Bienvenue dans Blop Drop\u00a0!', x:'Tape un groupe de blocs de la m\u00eame couleur (2 ou plus) pour les faire \u00e9clater.'},
+    {e:'\uD83E\uDEE7', t:'Bienvenue dans Bloop Drop\u00a0!', x:'Tape un groupe de blocs de la m\u00eame couleur (2 ou plus) pour les faire \u00e9clater.'},
     {e:'\u2728', t:'Encha\u00eene des combos', x:'Quand les blocs retombent et s\u2019alignent, \u00e7a d\u00e9clenche des r\u00e9actions en cha\u00eene. Plus la cha\u00eene est longue, plus tu marques\u00a0!'},
     {e:'\uD83D\uDEA8', t:'Ne d\u00e9borde pas', x:'Si les blocs montent trop haut, une ligne rouge te pr\u00e9vient. Redescends sous la ligne avant la fin du compte \u00e0 rebours\u00a0!'},
     {e:'\uD83C\uDFC6', t:'Progresse', x:'Gagne des vies, grimpe dans les ligues et rel\u00e8ve le d\u00e9fi de la semaine.'},
