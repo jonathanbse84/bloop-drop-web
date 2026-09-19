@@ -146,6 +146,12 @@
   .collist .col-row{ display:flex; justify-content:space-between; padding:9px 10px; border-bottom:1px solid rgba(255,255,255,.05); font-size:14px; }
   .prof-empty{ font-size:13px; color:var(--muted); padding:6px 2px; }
   #profileOverlay{ z-index:50; }
+  #onboardOverlay{ z-index:80; }
+  .onb-emoji{ font-size:52px; line-height:1; margin:4px 0 6px; }
+  .onb-input{ width:100%; box-sizing:border-box; padding:12px 14px; font-size:16px; border-radius:12px; border:1px solid var(--line); background:var(--panel); color:var(--ink); text-align:center; margin:6px 0 4px; }
+  .onb-dots{ display:flex; justify-content:center; gap:7px; margin:14px 0 4px; }
+  .onb-dots .dot{ width:8px; height:8px; border-radius:50%; background:var(--line); }
+  .onb-dots .dot.on{ background:var(--accent); }
   h1{ font-size:32px; font-weight:700; margin:2px 0 4px; letter-spacing:.4px; }
   h2{ font-size:26px; font-weight:700; margin:0 0 14px; }
   .lede{ color:var(--muted); font-size:15px; font-weight:400; line-height:1.5; margin:0 auto 20px; max-width:32ch; }
@@ -295,6 +301,7 @@
       <button class="btn ghost" id="startBoardBtn">Classement mondial</button>
       <button class="btn ghost" id="seasonBtn">Saison &amp; ligues</button>
       <button class="btn ghost" id="profileBtn">Mon profil</button>
+      <button class="btn ghost" id="howBtn">? Comment jouer</button>
     </div>
   </div>
 </div>
@@ -349,6 +356,21 @@
   </div>
 </div>
 
+<!-- Onboarding : tuto + choix du pseudo (1er lancement) -->
+<div class="overlay" id="onboardOverlay">
+  <div class="card onb">
+    <div class="onb-emoji" id="onbEmoji"></div>
+    <h2 id="onbTitle"></h2>
+    <p class="lede" id="onbText"></p>
+    <input id="onbPseudo" class="onb-input" maxlength="16" placeholder="Ton pseudo" autocomplete="off" style="display:none">
+    <div class="onb-dots" id="onbDots"></div>
+    <div class="btnrow">
+      <button class="btn ghost" id="onbSkip">Passer</button>
+      <button class="btn primary" id="onbNext">Suivant</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="pauseOverlay">
   <div class="card">
     <h2>En pause</h2>
@@ -389,7 +411,7 @@
     <p class="board-note" id="boardNote"></p>
     <div class="btnrow">
       <button class="btn primary" id="saveBtn">Préparation du partage…</button>
-      <button class="btn ghost" id="shareRankBtn">Partager mon rang</button>
+      <button class="btn primary" id="shareRankBtn">Partager mon score</button>
       <button class="btn ghost" id="againBtn">Rejouer</button>
     </div>
   </div>
@@ -411,7 +433,7 @@
 "use strict";
 (function(){
   /* ============================ Constants ============================ */
-  const GAME_VERSION = 'v34';   // <- à incrémenter à chaque nouvelle version publiée
+  const GAME_VERSION = 'v37';   // <- à incrémenter à chaque nouvelle version publiée
   const COLS = 7, ROWS = 12, NC = 5;
   const RAINBOW = 9;   // valeur spéciale dans la grille : bestiole arc-en-ciel
   // Blocs spéciaux non-matchables (valeurs réservées dans la grille)
@@ -1355,7 +1377,7 @@
     return null;
   }
   // Taille minimale d'un groupe pour éclater : 2 en Facile (accessible), 3 sinon.
-  function minGroup(){ return S.diff==='expert' ? 3 : 2; }
+  function minGroup(){ return S.diff==='facile' ? 2 : 3; }
   // Fréquence d'apparition d'un bloc de pierre (1 tous les N blocs) : jamais en Facile.
   function stoneEvery(){ if(S.diff==='expert') return 9; if(S.diff==='moyen') return 12; return 0; }
   // Fréquence d'apparition d'un bloc de glace : Expert uniquement.
@@ -1835,7 +1857,7 @@
   function toast(msg){ toastEl.textContent=msg; toastEl.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.classList.remove('show'),2200); }
 
   /* ============================ Share my rank ============================ */
-  const SHARE_URL = ''; // mets ici l'URL de ton jeu / la fiche store quand elle existe
+  const SHARE_URL = (window.SHARE_URL && String(window.SHARE_URL).indexOf('XXXX')<0) ? window.SHARE_URL : 'https://jonathanbse84.github.io/bloop-drop-web/';
   function myRankNumber(){
     try{ const i=lbData.findIndex(r=>r.id===playerId); if(i>=0) return i+1; }catch(e){}
     try{ if(typeof myRank!=='undefined' && myRank && myRank.rank) return myRank.rank; }catch(e){}
@@ -2210,6 +2232,39 @@
     try{ if(window.posthog && window.posthog.capture) window.posthog.capture(ev, props); }catch(e){}
   }
   /* ============ fin module Phase 8 ============ */
+
+  /* ============ Onboarding : tuto + choix du pseudo (1er lancement) ============ */
+  const K_ONBOARDED='cascadeTap.onboarded';
+  const ONB_STEPS=[
+    {e:'\uD83E\uDEE7', t:'Bienvenue dans Blop Drop\u00a0!', x:'Tape un groupe de blocs de la m\u00eame couleur (2 ou plus) pour les faire \u00e9clater.'},
+    {e:'\u2728', t:'Encha\u00eene des combos', x:'Quand les blocs retombent et s\u2019alignent, \u00e7a d\u00e9clenche des r\u00e9actions en cha\u00eene. Plus la cha\u00eene est longue, plus tu marques\u00a0!'},
+    {e:'\uD83D\uDEA8', t:'Ne d\u00e9borde pas', x:'Si les blocs montent trop haut, une ligne rouge te pr\u00e9vient. Redescends sous la ligne avant la fin du compte \u00e0 rebours\u00a0!'},
+    {e:'\uD83C\uDFC6', t:'Progresse', x:'Gagne des vies, grimpe dans les ligues et rel\u00e8ve le d\u00e9fi de la semaine.'},
+    {e:'\uD83D\uDE42', t:'Choisis ton pseudo', x:'Il appara\u00eetra dans le classement. Tu pourras le changer plus tard.', pseudo:true},
+  ];
+  let _onbIdx=0, _onbFull=true;
+  function _onbSteps(){ return _onbFull ? ONB_STEPS : ONB_STEPS.filter(s=>!s.pseudo); }
+  function openOnboarding(full){ _onbFull=(full!==false); _onbIdx=0; renderOnb(); show($('#onboardOverlay')); }
+  function renderOnb(){
+    const steps=_onbSteps(), s=steps[_onbIdx];
+    $('#onbEmoji').textContent=s.e; $('#onbTitle').textContent=s.t; $('#onbText').textContent=s.x;
+    const pin=$('#onbPseudo');
+    if(s.pseudo){ pin.style.display='block'; if(!pin.value) pin.value=ensurePseudo(); } else { pin.style.display='none'; }
+    $('#onbDots').innerHTML=steps.map((_,i)=>'<span class="dot'+(i===_onbIdx?' on':'')+'"></span>').join('');
+    const last=_onbIdx>=steps.length-1;
+    $('#onbNext').textContent = last ? (s.pseudo?'C\u2019est parti\u00a0!':'Commencer') : 'Suivant';
+    $('#onbSkip').style.display = last ? 'none' : '';
+  }
+  function onbNext(){
+    const steps=_onbSteps(), s=steps[_onbIdx];
+    if(s.pseudo){ const v=cleanPseudo($('#onbPseudo').value)||ensurePseudo(); savePseudo(v); try{ updateBlopUsername(v); }catch(e){} }
+    if(_onbIdx>=steps.length-1){ finishOnboarding(); return; }
+    _onbIdx++; renderOnb();
+  }
+  function onbSkip(){ _onbIdx=_onbSteps().length-1; renderOnb(); }
+  function finishOnboarding(){ try{ localStorage.setItem(K_ONBOARDED,'1'); }catch(e){} hide($('#onboardOverlay')); try{ renderChallenge(); }catch(e){} }
+  function maybeOnboard(){ let done=false; try{ done=localStorage.getItem(K_ONBOARDED)==='1'; }catch(e){} if(!done) setTimeout(()=>openOnboarding(true), 500); }
+  /* ============ fin onboarding ============ */
   // Miroir best-effort vers blop_profiles ; le local pilote le runtime (hors-ligne OK)
   async function syncLives(){
     if(!supa || !blopReady || !blopUid) return;
@@ -2458,6 +2513,10 @@
   $('#startBoardBtn').addEventListener('click', ()=>{ ensureAudio(); uiClick(); initDB(); renderBoards(); updateBoardUI(); show(boardOv); });
   $('#seasonBtn').addEventListener('click', ()=>{ ensureAudio(); uiClick(); initDB(); openSeason(); });
   $('#profileBtn').addEventListener('click', ()=>{ ensureAudio(); uiClick(); initDB(); openProfile(); });
+  $('#howBtn').addEventListener('click', ()=>{ ensureAudio(); uiClick(); openOnboarding(false); });
+  $('#onbNext').addEventListener('click', ()=>{ uiClick(); onbNext(); });
+  $('#onbSkip').addEventListener('click', ()=>{ uiClick(); onbSkip(); });
+  $('#onbPseudo').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); onbNext(); } });
   $('#profCloseBtn').addEventListener('click', ()=>{ hide($('#profileOverlay')); });
   $('#seasonCloseBtn').addEventListener('click', ()=>{ hide($('#seasonOverlay')); });
   $('#boardCloseBtn').addEventListener('click', ()=>hide(boardOv));
@@ -2508,6 +2567,7 @@
   setTimeout(()=>{ initHaptics(); refreshHaptic(); }, 600);
   setTimeout(()=>{ initHaptics(); refreshHaptic(); }, 2000); resetGame(); sizeGame(); updateHUD(); renderQuests();
   initAnalytics(); track('app_open', { v:GAME_VERSION });
+  maybeOnboard();   // tuto + choix du pseudo au tout premier lancement
   renderLives(); startLivesTicker(); renderLeagueBadge(); renderChallenge(); renderAccountXP(); initDB();
   requestAnimationFrame(frame);
 })();
